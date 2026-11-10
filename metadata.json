@@ -1,0 +1,6 @@
+{
+  "name": "The Missing Piece — TikTok Interactive & Solo Games",
+  "description": "Discover TikTok interactive games and solo games for creators. Play with your audience or make the moment your own, starting with the full Crossword experience.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

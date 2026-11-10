@@ -1,0 +1,7 @@
+import { useCookieBanner } from '@/hooks/use-cookie-banner';
+
+export function CookieBanner() {
+  const banner = useCookieBanner();
+  if (!banner.isOpen) return null;
+  return <section className="cookie-banner" role="dialog" aria-label="Cookie preferences"><div><h2>A quick cookie check.</h2><p>We use essential cookies to keep things running. Optional cookies help measure visits and ads.</p></div>{banner.isCustomizing && <fieldset className="cookie-options"><legend>Choose your optional cookies</legend><label><input type="checkbox" checked={banner.choices.analytics} onChange={e => banner.setChoice('analytics', e.target.checked)} /><span><strong>Analytics</strong>Visitor statistics for this site.</span></label><label><input type="checkbox" checked={banner.choices.marketing} onChange={e => banner.setChoice('marketing', e.target.checked)} /><span><strong>Marketing</strong>Ad measurement and personalised ads.</span></label><label><input type="checkbox" checked={banner.choices.platformAnalytics} onChange={e => banner.setChoice('platformAnalytics', e.target.checked)} /><span><strong>Platform analytics</strong>Helps Hostinger understand and improve the platform without directly identifying you.</span></label></fieldset>}<div className="cookie-actions"><button onClick={banner.rejectOptional}>Reject optional</button><button onClick={banner.isCustomizing ? banner.saveChoices : banner.customize}>{banner.isCustomizing ? 'Save choices' : 'Customize'}</button><button onClick={banner.acceptAll}>Accept all</button></div></section>;
+}
