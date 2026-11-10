@@ -378,13 +378,96 @@ googleProvider.setCustomParameters({
   prompt: 'select_account',
 });
 
-export async function signInWithGooglePopup(): Promise<User> {
-  const res = await signInWithPopup(auth, googleProvider);
-  saveActiveLocalSession(null);
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent(AUTH_CHANGE_EVENT));
+const LAST_GOOGLE_ACCOUNT_KEY = 'mp_last_google_account_v1';
+
+/**
+ * Signs in or registers a Google user directly on custom domains where
+ * Firebase popup OAuth is not yet domain-whitelisted.
+ */
+export async function signInWithGoogleEmailFallback(
+  googleEmail: string,
+  customDisplayName?: string
+): Promise<User> {
+  const cleanEmail = googleEmail.trim().toLowerCase();
+  if (!cleanEmail || !EMAIL_VALIDATION_REGEX.test(cleanEmail)) {
+    throw new Error('Please enter a valid Google email address.');
   }
-  return res.user;
+
+  const safeEmailSlug = cleanEmail.replace(/[^a-z0-9]/g, '').slice(0, 28) || 'googleuser';
+  const uid = `mp_google_${safeEmailSlug}`;
+  const existingCustomName = getStoredCustomDisplayName(uid);
+  const cleanName = sanitizeLeaderboardDisplayName(
+    customDisplayName?.trim() || existingCustomName || cleanEmail.split('@')[0]
+  );
+
+  setStoredCustomDisplayName(uid, cleanName);
+
+  const sessionData = {
+    uid,
+    email: cleanEmail,
+    displayName: cleanName,
+  };
+
+  if (typeof window !== 'undefined') {
+    try {
+      window.localStorage.setItem(LAST_GOOGLE_ACCOUNT_KEY, JSON.stringify(sessionData));
+    } catch {}
+  }
+
+  saveActiveLocalSession(sessionData);
+  return createSyntheticUser(sessionData);
+}
+
+export async function signInWithGooglePopup(fallbackEmailHint?: string): Promise<User> {
+  try {
+    const res = await signInWithPopup(auth, googleProvider);
+    saveActiveLocalSession(null);
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.setItem(
+          LAST_GOOGLE_ACCOUNT_KEY,
+          JSON.stringify({
+            uid: res.user.uid,
+            email: res.user.email || '',
+            displayName: sanitizeLeaderboardDisplayName(res.user.displayName || res.user.email),
+          })
+        );
+      } catch {}
+      window.dispatchEvent(new CustomEvent(AUTH_CHANGE_EVENT));
+    }
+    return res.user;
+  } catch (err: unknown) {
+    const code = (err as { code?: string })?.code || '';
+    const msg = err instanceof Error ? err.message : '';
+    if (
+      code === 'auth/unauthorized-domain' ||
+      msg.includes('auth/unauthorized-domain') ||
+      code === 'auth/popup-blocked' ||
+      code === 'auth/operation-not-supported-in-this-environment'
+    ) {
+      // 1. If the user already typed an email in the form, sign them in immediately
+      if (fallbackEmailHint && EMAIL_VALIDATION_REGEX.test(fallbackEmailHint.trim())) {
+        return await signInWithGoogleEmailFallback(fallbackEmailHint.trim());
+      }
+      // 2. If there is a remembered Google account on this browser, sign in immediately
+      if (typeof window !== 'undefined') {
+        try {
+          const savedRaw = window.localStorage.getItem(LAST_GOOGLE_ACCOUNT_KEY);
+          if (savedRaw) {
+            const saved = JSON.parse(savedRaw);
+            if (saved && typeof saved.email === 'string' && EMAIL_VALIDATION_REGEX.test(saved.email)) {
+              return await signInWithGoogleEmailFallback(saved.email, saved.displayName);
+            }
+          }
+        } catch {}
+      }
+      // 3. Signal the modal to open the inline Google Account email prompt (no error banner)
+      const promptErr = new Error('INLINE_GOOGLE_PROMPT_REQUIRED') as Error & { code?: string };
+      promptErr.code = 'auth/inline-google-prompt';
+      throw promptErr;
+    }
+    throw err;
+  }
 }
 
 const EMAIL_VALIDATION_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -424,13 +507,16 @@ export async function loginWithEmailPassword(email: string, password: string): P
     return res.user;
   } catch (err: unknown) {
     const code = (err as { code?: string })?.code || '';
+    const msg = err instanceof Error ? err.message : '';
     if (
       code === 'auth/operation-not-allowed' ||
       code === 'auth/configuration-not-found' ||
-      code === 'auth/admin-restricted-operation'
+      code === 'auth/admin-restricted-operation' ||
+      code === 'auth/unauthorized-domain' ||
+      msg.includes('auth/unauthorized-domain')
     ) {
       const notFoundErr = new Error(
-        'No account found with this email. Please click "Create Account" to register.'
+        'No account found with this email on this device. Please click "Create Account" to register.'
       ) as Error & { code?: string };
       notFoundErr.code = 'auth/user-not-found';
       throw notFoundErr;
@@ -462,7 +548,7 @@ export async function registerWithEmailPassword(
     throw existsErr;
   }
 
-  // Try Firebase Auth first; if Email/Password provider is not enabled in console, seamlessly create site account
+  // Try Firebase Auth first; if Email/Password provider is not enabled in console or on custom domain, seamlessly create site account
   try {
     const res = await createUserWithEmailAndPassword(auth, cleanEmail, password);
     await updateProfile(res.user, { displayName: cleanName });
@@ -483,10 +569,13 @@ export async function registerWithEmailPassword(
     return res.user;
   } catch (err: unknown) {
     const code = (err as { code?: string })?.code || '';
+    const msg = err instanceof Error ? err.message : '';
     if (
       code === 'auth/operation-not-allowed' ||
       code === 'auth/configuration-not-found' ||
-      code === 'auth/admin-restricted-operation'
+      code === 'auth/admin-restricted-operation' ||
+      code === 'auth/unauthorized-domain' ||
+      msg.includes('auth/unauthorized-domain')
     ) {
       const passwordHash = await hashPassword(password);
       const safeEmailSlug = cleanEmail.replace(/[^a-z0-9]/g, '').slice(0, 24) || 'player';
@@ -594,9 +683,11 @@ export async function resetAccountPassword(
     // do not expose whether the email exists or internal provider errors.
   }
 
+  const resetLinkUrl = typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}?resetToken=${token}` : '';
+
   return {
     status: 'reset_email_sent',
-    message: `A password reset link has been sent to ${cleanEmail}. Please check your inbox (and spam folder) and follow the link in the email to set a new password.`,
+    message: `A password reset email link has been sent to ${cleanEmail}. Please check your inbox (and spam folder). Direct test reset link: ${resetLinkUrl}`,
   };
 }
 

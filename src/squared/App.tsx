@@ -47,6 +47,7 @@ import { WordListPanel } from './components/WordListPanel';
 import { TitleScreen, PauseOrVictoryModal } from './components/GameModals';
 import { DateCalendarDropdown } from './components/DateCalendarDropdown';
 import { AuthHighScoresModal } from './components/AuthHighScoresModal';
+import { LoggedInIndicator } from '@/components/logged-in-indicator';
 
 type GameState = 'TITLE_MENU' | 'PLAYING' | 'PAUSED' | 'VICTORY';
 
@@ -628,8 +629,9 @@ export default function App() {
             </div>
           </div>
 
-          {/* Right: Mode Switcher, High Scores/Auth, Board Dark Mode Toggle, Audio Mute & Menu */}
+          {/* Right: Mode Switcher, LoggedInIndicator, High Scores/Auth, Board Dark Mode Toggle, Audio Mute & Menu */}
           <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+            <LoggedInIndicator />
             {/* Mode Quick Switch on Desktop */}
             <div className="hidden xl:flex items-center gap-1 p-1 bg-black/30 rounded-lg border border-white/10 mr-1">
               {(
@@ -926,7 +928,7 @@ export default function App() {
             <div className="flex items-center justify-between px-3.5 py-2 rounded-xl bg-[#19042B]/80 border border-[#E6BE5A]/25 text-xs">
               <div className="flex items-center gap-1.5 font-medium text-[#E6BE5A]">
                 <Compass className="w-3.5 h-3.5 text-[#F6C915]" />
-                <span>★ Missing Piece ({basePuzzle.featuredWord.length} Letters):</span>
+                <span>★ Missing Piece Bonus Word:</span>
               </div>
               <span className="font-mono font-bold tracking-widest text-[#F6C915]">
                 {foundFeatured

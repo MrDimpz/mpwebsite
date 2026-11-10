@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { ArrowUpRight, User as UserIcon, LogIn } from 'lucide-react';
 import { useUnifiedAuth, getCleanDisplayName } from '@/lib/unified-game-auth';
 import { UnifiedAuthModal } from '@/components/solo-games/unified-auth-modal';
+import { LoggedInIndicator } from '@/components/logged-in-indicator';
 
 export function SiteHeader() {
   const { user } = useUnifiedAuth();
@@ -50,6 +51,7 @@ export function SiteHeader() {
           </Link>
         </nav>
         <div className="header-actions">
+          <LoggedInIndicator />
           <button
             type="button"
             className="header-auth-btn"

@@ -44,6 +44,7 @@ import {
   saveUnifiedLeaderboardScore,
 } from '@/lib/unified-game-auth';
 import { UnifiedAuthModal } from '@/components/solo-games/unified-auth-modal';
+import { LoggedInIndicator } from '@/components/logged-in-indicator';
 
 type NavTab = 'play' | 'archive' | 'worksheets' | 'rules';
 type BrandTheme = 'logo' | 'classic';
@@ -92,48 +93,119 @@ const PUZZLE_CATEGORIES = [
   'Movies & Pop Culture',
 ];
 
+function isRedundantFirstLetterClue(text?: string): boolean {
+  if (!text) return true;
+  const trimmed = text.trim();
+  if (!trimmed) return true;
+  if (/first\s+(letter|character)/i.test(trimmed)) return true;
+  if (/^[A-Z0-9](\s*,\s*[A-Z0-9])+$/i.test(trimmed)) return true;
+  if (/^[A-Z0-9]$/i.test(trimmed)) return true;
+  return false;
+}
+
 function getHintTiers(puzzle: RebusChallenge) {
   const words = puzzle.answer.trim().split(/\s+/);
-  const wordLengths = words.map((w) => w.replace(/[^a-zA-Z0-9]/g, '').length);
+
+  // Tier 1: Starting letter of each word
   const firstLetters = words
     .map((w) => {
       const m = w.match(/[a-zA-Z0-9]/);
       return m ? `${m[0].toUpperCase()}...` : w;
     })
-    .join(' ');
-  const vowelsRevealed = words
-    .map((w) =>
-      w
-        .split('')
+    .join('  ');
+
+  // Tier 2: Bookends (First & Last letter of each word)
+  const bookends = words
+    .map((w) => {
+      const chars = w.split('');
+      const alphaIndices = chars
+        .map((ch, idx) => (/[a-zA-Z0-9]/.test(ch) ? idx : -1))
+        .filter((idx) => idx >= 0);
+      if (alphaIndices.length <= 1) return w.toUpperCase();
+      const firstIdx = alphaIndices[0];
+      const lastIdx = alphaIndices[alphaIndices.length - 1];
+      return chars
         .map((ch, idx) => {
           if (!/[a-zA-Z0-9]/.test(ch)) return ch;
-          if (idx === 0 || /[aeiouAEIOU]/.test(ch)) return ch.toUpperCase();
+          if (idx === firstIdx || idx === lastIdx) return ch.toUpperCase();
+          return '·';
+        })
+        .join('');
+    })
+    .join('   ');
+
+  // Tier 3: Vowel Blueprint (First, Last, and all Vowels revealed)
+  const vowelsRevealed = words
+    .map((w) => {
+      const chars = w.split('');
+      const alphaIndices = chars
+        .map((ch, idx) => (/[a-zA-Z0-9]/.test(ch) ? idx : -1))
+        .filter((idx) => idx >= 0);
+      const firstIdx = alphaIndices[0] ?? -1;
+      const lastIdx = alphaIndices[alphaIndices.length - 1] ?? -1;
+      return chars
+        .map((ch, idx) => {
+          if (!/[a-zA-Z0-9]/.test(ch)) return ch;
+          if (idx === firstIdx || idx === lastIdx || /[aeiouAEIOU]/.test(ch)) {
+            return ch.toUpperCase();
+          }
           return '_';
         })
-        .join('')
-    )
+        .join('');
+    })
     .join('   ');
+
+  // Tier 4: Key Word / Rebus Wordplay Clue (never repeats Starting Letters)
+  const hasCustomBlogClue = !isRedundantFirstLetterClue(puzzle.blogClue);
+  const hasCustomExplanation =
+    Boolean(puzzle.explanation) &&
+    !/^The visual arrangement encodes/i.test(puzzle.explanation.trim()) &&
+    puzzle.explanation.trim().toLowerCase() !== puzzle.answer.trim().toLowerCase();
+
+  let tier4Content = '';
+  if (words.length > 1) {
+    // Pick the longest word (or middle/anchor word) to reveal as an anchor clue
+    const sortedByLength = [...words].sort(
+      (a, b) => b.replace(/[^a-zA-Z0-9]/g, '').length - a.replace(/[^a-zA-Z0-9]/g, '').length
+    );
+    const anchorWord = sortedByLength[0].replace(/[^a-zA-Z0-9']/g, '').toUpperCase();
+    tier4Content = `Anchor word in answer: "${anchorWord}"`;
+  } else {
+    const cleanSingle = words[0].replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    const halfLen = Math.max(2, Math.ceil(cleanSingle.length / 2));
+    tier4Content = `Starts with "${cleanSingle.slice(0, halfLen)}..."`;
+  }
+
+  if (hasCustomBlogClue) {
+    tier4Content = `${puzzle.blogClue.trim()} · ${tier4Content}`;
+  } else if (hasCustomExplanation) {
+    // Sanitize explanation so it doesn't directly print "= Answer"
+    const sanitizedExp = puzzle.explanation
+      .replace(new RegExp(puzzle.answer, 'gi'), '___')
+      .trim();
+    tier4Content = `Visual breakdown: ${sanitizedExp} (${tier4Content})`;
+  }
 
   return [
     {
       tier: 1,
-      label: 'Word Structure',
-      content: `${words.length} ${words.length === 1 ? 'word' : 'words'} — Letter lengths: (${wordLengths.join(', ')})`,
+      label: 'Starting Letters',
+      content: `First letter of each word: ${firstLetters}`,
     },
     {
       tier: 2,
-      label: 'Starting Letters',
-      content: `Starts with: ${firstLetters}`,
+      label: 'First & Last Letters',
+      content: `Word bookends: ${bookends}`,
     },
     {
       tier: 3,
-      label: 'Editorial Clue',
-      content: puzzle.blogClue || puzzle.explanation,
+      label: 'Vowel Blueprint',
+      content: `Vowels & bookends: ${vowelsRevealed}`,
     },
     {
       tier: 4,
-      label: 'Vowel Blueprint',
-      content: `Pattern: ${vowelsRevealed}`,
+      label: 'Key Word & Visual Clue',
+      content: tier4Content,
     },
   ];
 }
@@ -528,45 +600,80 @@ export default function App() {
     });
   };
 
-  // Render masked answer slots for Hint Tier 1+
+  // Render masked answer slots synced with the 4-tier progressive hint system
   const renderLetterSlots = () => {
     const words = currentPuzzle.answer.split(' ');
-    const showFirstLetters = hintsUnlocked >= 2 || isSolved || isRevealed;
-    const showVowels = hintsUnlocked >= 4 || isSolved || isRevealed;
+    const showFirstLetters = hintsUnlocked >= 1 || isSolved || isRevealed;
+    const showLastLetters = hintsUnlocked >= 2 || isSolved || isRevealed;
+    const showVowels = hintsUnlocked >= 3 || isSolved || isRevealed;
+    const showKeyWord = hintsUnlocked >= 4 || isSolved || isRevealed;
     const showFull = isSolved || isRevealed;
+
+    const anchorWordUpper =
+      words.length > 1
+        ? [...words]
+            .sort(
+              (a, b) =>
+                b.replace(/[^a-zA-Z0-9]/g, '').length - a.replace(/[^a-zA-Z0-9]/g, '').length
+            )[0]
+            .replace(/[^a-zA-Z0-9']/g, '')
+            .toUpperCase()
+        : '';
 
     return (
       <div className="flex flex-wrap items-center justify-center gap-x-3 sm:gap-x-4 gap-y-2 py-2.5 px-2.5 sm:px-3 bg-[var(--bg-subtle)] rounded-xl border border-[var(--border-card)]">
-        {words.map((word, wIdx) => (
-          <div key={wIdx} className="flex items-center gap-1 flex-wrap justify-center">
-            {word.split('').map((char, cIdx) => {
-              const isAlphaNum = /[a-zA-Z0-9]/.test(char);
-              if (!isAlphaNum) {
+        {words.map((word, wIdx) => {
+          const chars = word.split('');
+          const alphaIndices = chars
+            .map((ch, idx) => (/[a-zA-Z0-9]/.test(ch) ? idx : -1))
+            .filter((idx) => idx >= 0);
+          const firstIdx = alphaIndices[0] ?? -1;
+          const lastIdx = alphaIndices[alphaIndices.length - 1] ?? -1;
+          const cleanWordUpper = word.replace(/[^a-zA-Z0-9']/g, '').toUpperCase();
+          const isAnchorWord = words.length > 1 && cleanWordUpper === anchorWordUpper;
+          const halfSingleLimit =
+            words.length === 1 ? Math.max(2, Math.ceil(alphaIndices.length / 2)) : 0;
+
+          return (
+            <div key={wIdx} className="flex items-center gap-1 flex-wrap justify-center">
+              {chars.map((char, cIdx) => {
+                const isAlphaNum = /[a-zA-Z0-9]/.test(char);
+                if (!isAlphaNum) {
+                  return (
+                    <span
+                      key={cIdx}
+                      className="font-mono text-xs sm:text-sm font-bold text-stone-400 px-0.5"
+                    >
+                      {char}
+                    </span>
+                  );
+                }
+                const isVowel = /[aeiouAEIOU]/.test(char);
+                const alphaPos = alphaIndices.indexOf(cIdx);
+                const shouldRevealChar =
+                  showFull ||
+                  (showFirstLetters && cIdx === firstIdx) ||
+                  (showLastLetters && cIdx === lastIdx) ||
+                  (showVowels && isVowel) ||
+                  (showKeyWord &&
+                    (isAnchorWord || (words.length === 1 && alphaPos < halfSingleLimit)));
+
                 return (
-                  <span key={cIdx} className="font-mono text-xs sm:text-sm font-bold text-stone-400 px-0.5">
-                    {char}
+                  <span
+                    key={cIdx}
+                    className={`w-5 h-6 sm:w-7 sm:h-8 rounded flex items-center justify-center font-mono text-xs sm:text-sm font-bold transition-all ${
+                      shouldRevealChar
+                        ? 'bg-[var(--brand-soft-bg)] text-[var(--brand-text)] border border-[var(--brand-soft-border)] shadow-2xs'
+                        : 'bg-[var(--bg-card)] text-stone-300 dark:text-stone-600 border border-[var(--border-card)]'
+                    }`}
+                  >
+                    {shouldRevealChar ? char.toUpperCase() : '_'}
                   </span>
                 );
-              }
-              const isVowel = /[aeiouAEIOU]/.test(char);
-              const shouldRevealChar =
-                showFull || (showFirstLetters && cIdx === 0) || (showVowels && isVowel);
-
-              return (
-                <span
-                  key={cIdx}
-                  className={`w-5 h-6 sm:w-7 sm:h-8 rounded flex items-center justify-center font-mono text-xs sm:text-sm font-bold transition-all ${
-                    shouldRevealChar
-                      ? 'bg-[var(--brand-soft-bg)] text-[var(--brand-text)] border border-[var(--brand-soft-border)] shadow-2xs'
-                      : 'bg-[var(--bg-card)] text-stone-300 dark:text-stone-600 border border-[var(--border-card)]'
-                  }`}
-                >
-                  {shouldRevealChar ? char.toUpperCase() : '_'}
-                </span>
-              );
-            })}
-          </div>
-        ))}
+              })}
+            </div>
+          );
+        })}
       </div>
     );
   };
@@ -673,8 +780,9 @@ export default function App() {
               </button>
             </nav>
 
-            {/* Zone 3: Logo Theme Toggle + Dark Mode Selection Slider + Sprint CTA */}
+            {/* Zone 3: LoggedInIndicator + Logo Theme Toggle + Dark Mode Selection Slider + Sprint CTA */}
             <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+              <LoggedInIndicator />
               <div className="hidden xl:flex items-center gap-3 text-xs font-mono text-stone-600 dark:text-stone-400">
                 <span title="Solved Main Game Puzzles">
                   Solved:{' '}

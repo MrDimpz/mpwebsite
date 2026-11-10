@@ -137,7 +137,7 @@ export function AdminPortalModal({ open, onClose }: AdminPortalModalProps) {
 
     setUserFormFeedback({
       type: 'ok',
-      text: `Generated key ${res.user.key} for ${res.user.displayHandle} (active on both WiKirecTangled & WikiContexto).`,
+      text: `Generated key ${res.user.key} for ${res.user.displayHandle} (active across WiKirecTangled, WikiContexto & Squared Interactive).`,
     });
     setNewUserHandle('');
     setNewUserLabel('');
@@ -368,7 +368,7 @@ export function AdminPortalModal({ open, onClose }: AdminPortalModalProps) {
             >
               Sign in with your site administrator username and password to generate{' '}
               <code style={{ color: '#f3b340', fontWeight: 700 }}>LIVE-xxxx-xxxx</code> keys for
-              streamers and manage admin accounts across WiKirecTangled and WikiContexto.
+              streamers and manage admin accounts across WiKirecTangled, WikiContexto, and Squared Interactive.
             </p>
 
             <div>
@@ -653,7 +653,7 @@ export function AdminPortalModal({ open, onClose }: AdminPortalModalProps) {
                       </div>
                       <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
                         Format: <code style={{ color: '#f3b340' }}>LIVE-xxxx-xxxx</code> · Works on
-                        WiKirecTangled & WikiContexto
+                        WiKirecTangled, WikiContexto & Squared Interactive
                       </span>
                     </div>
 
@@ -887,7 +887,7 @@ export function AdminPortalModal({ open, onClose }: AdminPortalModalProps) {
                         </span>
                       </div>
                       <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
-                        Valid across WiKirecTangled & WikiContexto
+                        Valid across WiKirecTangled, WikiContexto & Squared Interactive
                       </span>
                     </div>
 

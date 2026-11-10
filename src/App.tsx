@@ -16,12 +16,15 @@ import SquaredPage from '@/routes/squared';
 import ThematixPage from '@/routes/thematix';
 import WikirecGamePage from '@/routes/wikirec-game';
 import WikiconGamePage from '@/routes/wikicon-game';
+import SquaredIntGamePage from '@/routes/squaredint-game';
 
 const PAGE_TITLES: Record<string, string> = {
   '/': 'The Missing Piece — TikTok interactive & solo games',
   '/interactive-games': 'TikTok interactive games — The Missing Piece',
   '/interactive-games/wikirec': 'WiKirecTangled — Interactive game — The Missing Piece',
   '/interactive-games/wikicon': 'WikiContexto — Interactive game — The Missing Piece',
+  '/interactive-games/squared': 'Squared Interactive — TikTok LIVE Word Grid — The Missing Piece',
+  '/interactive-games/squaredint': 'Squared Interactive — TikTok LIVE Word Grid — The Missing Piece',
   '/solo-games': 'Solo games — The Missing Piece',
   '/solo-games/rebus': 'Missing Rebus — Solo game — The Missing Piece',
   '/solo-games/squared': 'Squared — Daily Word Grid — The Missing Piece',
@@ -34,6 +37,8 @@ const STANDALONE_GAME_PATHS = new Set([
   '/solo-games/thematix',
   '/interactive-games/wikirec',
   '/interactive-games/wikicon',
+  '/interactive-games/squared',
+  '/interactive-games/squaredint',
 ]);
 
 function AppShell() {
@@ -64,6 +69,8 @@ function AppShell() {
         <Route path="/solo-games/thematix" element={<ThematixPage />} />
         <Route path="/interactive-games/wikirec" element={<WikirecGamePage />} />
         <Route path="/interactive-games/wikicon" element={<WikiconGamePage />} />
+        <Route path="/interactive-games/squared" element={<SquaredIntGamePage />} />
+        <Route path="/interactive-games/squaredint" element={<SquaredIntGamePage />} />
       </Routes>
     );
   }

@@ -26,8 +26,8 @@ export function InteractiveGamesPage() {
           <h1 id="interactive-title">Interactive live games.</h1>
           <p>
             Built for chat, speed, and shared momentum. Jump in when the stream goes live, or unlock
-            TikTok Live Streamer mode across both games with a unified <code>LIVE-xxxx-xxxx</code>{' '}
-            key from the site admin.
+            TikTok Live Streamer mode across all interactive games with a unified{' '}
+            <code>LIVE-xxxx-xxxx</code> key from the site admin.
           </p>
 
           {activeStreamer && (
@@ -92,7 +92,7 @@ export function InteractiveGamesPage() {
             </div>
           </article>
 
-          {/* Card 02 / WikiContexto - Paper Accent */}
+          {/* Card 02 / WikiContexto */}
           <article className="game-card">
             <div className="card-top">
               <span className="category-label">
@@ -121,6 +121,42 @@ export function InteractiveGamesPage() {
             <div className="mt-auto pt-2">
               <Link className="game-link" to="/interactive-games/wikicon">
                 Play WikiContexto{' '}
+                <span>
+                  <ArrowUpRight size={22} />
+                </span>
+              </Link>
+            </div>
+          </article>
+
+          {/* Card 03 / Squared Interactive */}
+          <article className="game-card">
+            <div className="card-top">
+              <span className="category-label">
+                <span className="status-dot" /> NOW PLAYING
+              </span>
+              <span className="card-number">03 /</span>
+            </div>
+            <Link
+              to="/interactive-games/squared"
+              className="game-art game-art-thumb"
+              aria-label="Open Squared Interactive"
+            >
+              <img
+                className="game-thumbnail"
+                src="/squaredint-website-thumbnail.svg"
+                alt="Preview of Squared Interactive 4x4 word grid with TikTok Live player leaderboard"
+              />
+            </Link>
+            <h3>Squared Interactive</h3>
+            <p>
+              Host the 4×4 word grid live on TikTok. Viewers race in chat to claim 4+ letter words
+              and bonus words, trigger <code>!rotate</code> and <code>!hint</code> commands, and
+              climb the live stream leaderboard — unlocked with your unified{' '}
+              <code>LIVE-xxxx-xxxx</code> streamer key.
+            </p>
+            <div className="mt-auto pt-2">
+              <Link className="game-link" to="/interactive-games/squared">
+                Play Squared Interactive{' '}
                 <span>
                   <ArrowUpRight size={22} />
                 </span>

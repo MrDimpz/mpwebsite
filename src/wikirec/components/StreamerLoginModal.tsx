@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Key, Lock, Eye, EyeOff, Radio, AlertCircle, CheckCircle2, X } from 'lucide-react';
 import { getOrInitTabSessionId } from '../utils/session';
-import { validateInteractiveStreamerKey } from '@/lib/interactive-key-auth';
+import { validateInteractiveStreamerKey, setActiveInteractiveStreamerSession } from '@/lib/interactive-key-auth';
 
 interface StreamerLoginModalProps {
   isOpen: boolean;
@@ -73,6 +73,7 @@ export const StreamerLoginModal: React.FC<StreamerLoginModalProps> = ({
       // First check against the shared interactive admin keys (LIVE-xxxx-xxxx)
       const validation = validateInteractiveStreamerKey(cleanUser, cleanKey);
       if (validation.ok) {
+        setActiveInteractiveStreamerSession(validation.user);
         onSuccess({
           username: validation.user.username,
           key: validation.user.key,

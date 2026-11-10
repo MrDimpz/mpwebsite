@@ -433,6 +433,25 @@ export function getActiveInteractiveStreamerSession(): ActiveInteractiveStreamer
   }
 }
 
+export function setActiveInteractiveStreamerSession(user: InteractiveStreamerUser): ActiveInteractiveStreamerSession {
+  const session: ActiveInteractiveStreamerSession = {
+    username: user.username,
+    displayHandle: user.displayHandle,
+    key: user.key,
+    label: user.label,
+    loggedInAt: Date.now(),
+    lastActivity: Date.now(),
+  };
+  if (typeof window !== 'undefined') {
+    try {
+      window.sessionStorage.setItem(ACTIVE_STREAMER_KEY, JSON.stringify(session));
+      window.localStorage.setItem(ACTIVE_STREAMER_KEY, JSON.stringify(session));
+    } catch {}
+    notifyAuthUpdated();
+  }
+  return session;
+}
+
 export function clearActiveInteractiveStreamerSession(): void {
   if (typeof window === 'undefined') return;
   try {

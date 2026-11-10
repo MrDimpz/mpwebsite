@@ -13,6 +13,7 @@ import {
 import {
   validateInteractiveStreamerKey,
   getActiveInteractiveStreamerSession,
+  setActiveInteractiveStreamerSession,
   clearActiveInteractiveStreamerSession,
 } from '@/lib/interactive-key-auth';
 import './index.css';
@@ -436,6 +437,7 @@ export function App() {
     return new Promise((resolve) => {
       const validation = validateInteractiveStreamerKey(username, key);
       if (validation.ok) {
+        setActiveInteractiveStreamerSession(validation.user);
         recordActivity();
         const handle = validation.user.displayHandle;
         setAuthenticatedStreamer(handle);

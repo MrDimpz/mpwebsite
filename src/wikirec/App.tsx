@@ -22,6 +22,7 @@ import {
   clearActiveInteractiveStreamerSession,
 } from '@/lib/interactive-key-auth';
 import type { FinderInfo } from './shared/types';
+import { LoggedInIndicator } from '@/components/logged-in-indicator';
 import './index.css';
 
 const STORAGE_NAME_KEY = 'wkt_display_name';
@@ -942,6 +943,11 @@ export default function App() {
               {gameState?.commonWordTarget || 0}
             </span>
           </span>
+        </div>
+
+        {/* Logged in indicator */}
+        <div className="hidden sm:block">
+          <LoggedInIndicator />
         </div>
 
         {/* Hint button */}
