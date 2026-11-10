@@ -1,16 +1,15 @@
 /**
- * Client-side progress, scoring and leaderboard for the crossword game.
- *
- * The repository's scoring model (see `crossword-types.ts`) awards a fixed
- * base score by the easiest clue difficulty the solver used, then deducts a
- * time penalty of 10 points per full minute elapsed. We persist per-puzzle
- * completion and a rolling local leaderboard in localStorage so progress
- * survives reloads without a backend.
- *
- * All access is guarded for SSR — these helpers are no-ops on the server.
+ * Client-side progress, scoring and leaderboard for the crossword game,
+ * synced with the unified Firebase Auth & Firestore public leaderboard.
  */
 
 import type { ClueDifficulty, GridSizeOption, LeaderboardEntry } from '@/data/crossword-types';
+import {
+	auth,
+	getCleanDisplayName,
+	saveUnifiedLeaderboardScore,
+	type User,
+} from '@/lib/unified-game-auth';
 
 export type GameDifficulty = 'standard' | 'easy' | 'medium' | 'hard' | 'cryptic';
 
@@ -117,6 +116,13 @@ export function loadLeaderboard(): LeaderboardEntry[] {
 	return safeRead<LeaderboardEntry[]>(LEADERBOARD_KEY, []);
 }
 
+export function formatClock(totalSeconds: number): string {
+	const s = Math.max(0, Math.floor(totalSeconds));
+	const m = Math.floor(s / 60);
+	const r = s % 60;
+	return `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`;
+}
+
 export interface AddLeaderboardArgs {
 	puzzleId: string;
 	puzzleTitle: string;
@@ -129,9 +135,12 @@ export interface AddLeaderboardArgs {
 
 export function addLeaderboardEntry(args: AddLeaderboardArgs): LeaderboardEntry {
 	const tier = difficultyToTier(args.difficulty);
+	const currentUser = auth.currentUser;
+	const playerName = currentUser ? getCleanDisplayName(currentUser) : 'You';
+
 	const entry: LeaderboardEntry = {
 		id: `${args.puzzleId}-${Date.now()}`,
-		playerName: 'You',
+		playerName,
 		puzzleId: args.puzzleId,
 		puzzleTitle: args.puzzleTitle,
 		themeName: args.themeName,
@@ -143,19 +152,42 @@ export function addLeaderboardEntry(args: AddLeaderboardArgs): LeaderboardEntry 
 		clueDifficulty: tier,
 		accuracy: 100,
 		completedAt: new Date().toISOString(),
-		isCloudSynced: false,
+		isCloudSynced: Boolean(currentUser),
 	};
 	const board = loadLeaderboard();
 	board.push(entry);
 	board.sort((a, b) => b.score - a.score);
 	const trimmed = board.slice(0, 50);
 	safeWrite(LEADERBOARD_KEY, trimmed);
+
+	if (currentUser && args.score > 0) {
+		saveUnifiedLeaderboardScore({
+			user: currentUser,
+			gameId: 'crossword',
+			puzzleId: args.puzzleId,
+			puzzleTitle: args.puzzleTitle,
+			score: args.score,
+			metricLabel: `${args.score.toLocaleString('en-GB')} pts`,
+			subMetricLabel: `${args.gridSize}×${args.gridSize} · ${tier} · ${formatClock(args.timeSeconds)}`,
+		}).catch(() => {});
+	}
+
 	return entry;
 }
 
-export function formatClock(totalSeconds: number): string {
-	const s = Math.max(0, Math.floor(totalSeconds));
-	const m = Math.floor(s / 60);
-	const r = s % 60;
-	return `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`;
+export async function syncLocalCrosswordScoresToCloud(user: User): Promise<void> {
+	const localEntries = loadLeaderboard();
+	for (const entry of localEntries.slice(0, 15)) {
+		if (entry.score > 0) {
+			await saveUnifiedLeaderboardScore({
+				user,
+				gameId: 'crossword',
+				puzzleId: entry.puzzleId || 'crossword-daily',
+				puzzleTitle: entry.puzzleTitle || 'Daily Crossword',
+				score: entry.score,
+				metricLabel: `${entry.score.toLocaleString('en-GB')} pts`,
+				subMetricLabel: `${entry.gridSize}×${entry.gridSize} · ${entry.clueDifficulty} · ${formatClock(entry.timeSeconds)}`,
+			}).catch(() => {});
+		}
+	}
 }

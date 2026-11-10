@@ -1,0 +1,203 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" width="1200" height="720">
+  <defs>
+    <clipPath id="sqClip">
+      <rect x="0" y="0" width="1200" height="720" rx="16" />
+    </clipPath>
+    <linearGradient id="sqBgGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#190826" />
+      <stop offset="55%" stop-color="#280D3D" />
+      <stop offset="100%" stop-color="#14051F" />
+    </linearGradient>
+    <filter id="sqGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#000000" flood-opacity="0.45" />
+    </filter>
+  </defs>
+  <g clip-path="url(#sqClip)">
+    <!-- Velvet Royal Background -->
+    <rect x="0" y="0" width="1200" height="720" fill="url(#sqBgGrad)" />
+
+    <!-- Browser Top Bar -->
+    <rect x="0" y="0" width="1200" height="44" fill="#12061c" />
+    <circle cx="24" cy="22" r="6" fill="#ff5f56" />
+    <circle cx="44" cy="22" r="6" fill="#ffbd2e" />
+    <circle cx="64" cy="22" r="6" fill="#27c93f" />
+    <rect x="320" y="9" width="560" height="26" rx="6" fill="#231133" stroke="#472663" stroke-width="1" />
+    <text x="600" y="26" text-anchor="middle" fill="#e9d5ff" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="600">themissingpiece.fun/solo-games/squared</text>
+
+    <!-- Game Header Bar -->
+    <rect x="48" y="64" width="1104" height="62" rx="16" fill="#240c38" stroke="#4c2270" stroke-width="1.5" />
+    <circle cx="88" cy="95" r="20" fill="#3b135c" stroke="#f6c915" stroke-width="2" />
+    <text x="88" y="101" text-anchor="middle" fill="#f6c915" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="700">❖</text>
+    <text x="122" y="91" fill="#ffffff" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="700">Squared — Daily Word Grid</text>
+    <text x="122" y="111" fill="#d8b4fe" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="600">SWIPE ADJACENT LETTERS · FIND EVERY HIDDEN WORD</text>
+
+    <!-- Mode Switcher Pills -->
+    <rect x="650" y="76" width="84" height="38" rx="10" fill="#190826" stroke="#4c2270" stroke-width="1" />
+    <text x="692" y="100" text-anchor="middle" fill="#d8b4fe" font-family="DejaVu Sans Mono, monospace" font-size="13" font-weight="700">3×3</text>
+    <rect x="742" y="76" width="84" height="38" rx="10" fill="#f6c915" />
+    <text x="784" y="100" text-anchor="middle" fill="#190826" font-family="DejaVu Sans Mono, monospace" font-size="13" font-weight="700">4×4</text>
+    <rect x="834" y="76" width="84" height="38" rx="10" fill="#190826" stroke="#4c2270" stroke-width="1" />
+    <text x="876" y="100" text-anchor="middle" fill="#d8b4fe" font-family="DejaVu Sans Mono, monospace" font-size="13" font-weight="700">5×5</text>
+
+    <rect x="944" y="76" width="184" height="38" rx="10" fill="#32124d" stroke="#f6c915" stroke-width="1.2" />
+    <text x="1036" y="100" text-anchor="middle" fill="#f6c915" font-family="DejaVu Sans Mono, monospace" font-size="13" font-weight="700">🏆 480 pts · 16/40</text>
+
+    <!-- Left / Center: Tactile 4x4 Word Grid Board -->
+    <g filter="url(#sqGlow)">
+      <rect x="84" y="150" width="490" height="490" rx="34" fill="#12051d" stroke="#f6c915" stroke-width="4" />
+      <!-- Active Swipe Path Line (S -> E -> D -> R -> A) -->
+      <polyline points="274,234 274,344 384,344 384,454 494,454" fill="none" stroke="#f6c915" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.45" />
+      
+        <g transform="translate(114, 180)">
+          <rect x="0" y="0" width="98" height="98" rx="20" fill="#240c38" stroke="#582782" stroke-width="2" />
+          <text x="82" y="22" text-anchor="end" fill="#f6c915" font-family="DejaVu Sans Mono, monospace" font-size="13" font-weight="700">1</text>
+          <text x="49" y="62" text-anchor="middle" fill="#ffffff" font-family="DejaVu Sans, sans-serif" font-size="42" font-weight="700">T</text>
+          <text x="49" y="86" text-anchor="middle" fill="#a855f7" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="700">•••••</text>
+        </g>
+        <g transform="translate(224, 180)">
+          <rect x="0" y="0" width="98" height="98" rx="20" fill="#f6c915" stroke="#ffffff" stroke-width="3" />
+          <text x="82" y="22" text-anchor="end" fill="#190826" font-family="DejaVu Sans Mono, monospace" font-size="13" font-weight="700">5</text>
+          <text x="49" y="62" text-anchor="middle" fill="#190826" font-family="DejaVu Sans, sans-serif" font-size="42" font-weight="700">S</text>
+          <text x="49" y="86" text-anchor="middle" fill="#360B42" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="700">•••••</text>
+        </g>
+        <g transform="translate(334, 180)">
+          <rect x="0" y="0" width="98" height="98" rx="20" fill="#240c38" stroke="#582782" stroke-width="2" />
+          <text x="82" y="22" text-anchor="end" fill="#f6c915" font-family="DejaVu Sans Mono, monospace" font-size="13" font-weight="700">2</text>
+          <text x="49" y="62" text-anchor="middle" fill="#ffffff" font-family="DejaVu Sans, sans-serif" font-size="42" font-weight="700">I</text>
+          <text x="49" y="86" text-anchor="middle" fill="#a855f7" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="700">•••••</text>
+        </g>
+        <g transform="translate(444, 180)">
+          <rect x="0" y="0" width="98" height="98" rx="20" fill="#240c38" stroke="#582782" stroke-width="2" />
+          
+          <text x="49" y="62" text-anchor="middle" fill="#ffffff" font-family="DejaVu Sans, sans-serif" font-size="42" font-weight="700">U</text>
+          <text x="49" y="86" text-anchor="middle" fill="#a855f7" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="700">••</text>
+        </g>
+        <g transform="translate(114, 290)">
+          <rect x="0" y="0" width="98" height="98" rx="20" fill="#240c38" stroke="#582782" stroke-width="2" />
+          <text x="82" y="22" text-anchor="end" fill="#f6c915" font-family="DejaVu Sans Mono, monospace" font-size="13" font-weight="700">3</text>
+          <text x="49" y="62" text-anchor="middle" fill="#ffffff" font-family="DejaVu Sans, sans-serif" font-size="42" font-weight="700">L</text>
+          <text x="49" y="86" text-anchor="middle" fill="#a855f7" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="700">•••••</text>
+        </g>
+        <g transform="translate(224, 290)">
+          <rect x="0" y="0" width="98" height="98" rx="20" fill="#f6c915" stroke="#ffffff" stroke-width="3" />
+          <text x="82" y="22" text-anchor="end" fill="#190826" font-family="DejaVu Sans Mono, monospace" font-size="13" font-weight="700">1</text>
+          <text x="49" y="62" text-anchor="middle" fill="#190826" font-family="DejaVu Sans, sans-serif" font-size="42" font-weight="700">E</text>
+          <text x="49" y="86" text-anchor="middle" fill="#360B42" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="700">•••••</text>
+        </g>
+        <g transform="translate(334, 290)">
+          <rect x="0" y="0" width="98" height="98" rx="20" fill="#f6c915" stroke="#ffffff" stroke-width="3" />
+          <text x="82" y="22" text-anchor="end" fill="#190826" font-family="DejaVu Sans Mono, monospace" font-size="13" font-weight="700">5</text>
+          <text x="49" y="62" text-anchor="middle" fill="#190826" font-family="DejaVu Sans, sans-serif" font-size="42" font-weight="700">D</text>
+          <text x="49" y="86" text-anchor="middle" fill="#360B42" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="700">•••••</text>
+        </g>
+        <g transform="translate(444, 290)">
+          <rect x="0" y="0" width="98" height="98" rx="20" fill="#240c38" stroke="#582782" stroke-width="2" />
+          <text x="82" y="22" text-anchor="end" fill="#f6c915" font-family="DejaVu Sans Mono, monospace" font-size="13" font-weight="700">9</text>
+          <text x="49" y="62" text-anchor="middle" fill="#ffffff" font-family="DejaVu Sans, sans-serif" font-size="42" font-weight="700">R</text>
+          <text x="49" y="86" text-anchor="middle" fill="#a855f7" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="700">•••••</text>
+        </g>
+        <g transform="translate(114, 400)">
+          <rect x="0" y="0" width="98" height="98" rx="20" fill="#240c38" stroke="#582782" stroke-width="2" />
+          <text x="82" y="22" text-anchor="end" fill="#f6c915" font-family="DejaVu Sans Mono, monospace" font-size="13" font-weight="700">2</text>
+          <text x="49" y="62" text-anchor="middle" fill="#ffffff" font-family="DejaVu Sans, sans-serif" font-size="42" font-weight="700">N</text>
+          <text x="49" y="86" text-anchor="middle" fill="#a855f7" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="700">•••••</text>
+        </g>
+        <g transform="translate(224, 400)">
+          <rect x="0" y="0" width="98" height="98" rx="20" fill="#f6c915" stroke="#ffffff" stroke-width="3" />
+          <text x="82" y="22" text-anchor="end" fill="#190826" font-family="DejaVu Sans Mono, monospace" font-size="13" font-weight="700">2</text>
+          <text x="49" y="62" text-anchor="middle" fill="#190826" font-family="DejaVu Sans, sans-serif" font-size="42" font-weight="700">R</text>
+          <text x="49" y="86" text-anchor="middle" fill="#360B42" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="700">•••••</text>
+        </g>
+        <g transform="translate(334, 400)">
+          <rect x="0" y="0" width="98" height="98" rx="20" fill="#240c38" stroke="#582782" stroke-width="2" />
+          <text x="82" y="22" text-anchor="end" fill="#f6c915" font-family="DejaVu Sans Mono, monospace" font-size="13" font-weight="700">1</text>
+          <text x="49" y="62" text-anchor="middle" fill="#ffffff" font-family="DejaVu Sans, sans-serif" font-size="42" font-weight="700">N</text>
+          <text x="49" y="86" text-anchor="middle" fill="#a855f7" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="700">•••••</text>
+        </g>
+        <g transform="translate(444, 400)">
+          <rect x="0" y="0" width="98" height="98" rx="20" fill="#f6c915" stroke="#ffffff" stroke-width="3" />
+          <text x="82" y="22" text-anchor="end" fill="#190826" font-family="DejaVu Sans Mono, monospace" font-size="13" font-weight="700">1</text>
+          <text x="49" y="62" text-anchor="middle" fill="#190826" font-family="DejaVu Sans, sans-serif" font-size="42" font-weight="700">A</text>
+          <text x="49" y="86" text-anchor="middle" fill="#360B42" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="700">•••••</text>
+        </g>
+        <g transform="translate(114, 510)">
+          <rect x="0" y="0" width="98" height="98" rx="20" fill="#240c38" stroke="#582782" stroke-width="2" />
+          <text x="82" y="22" text-anchor="end" fill="#f6c915" font-family="DejaVu Sans Mono, monospace" font-size="13" font-weight="700">2</text>
+          <text x="49" y="62" text-anchor="middle" fill="#ffffff" font-family="DejaVu Sans, sans-serif" font-size="42" font-weight="700">S</text>
+          <text x="49" y="86" text-anchor="middle" fill="#a855f7" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="700">•••••</text>
+        </g>
+        <g transform="translate(224, 510)">
+          <rect x="0" y="0" width="98" height="98" rx="20" fill="#240c38" stroke="#582782" stroke-width="2" />
+          <text x="82" y="22" text-anchor="end" fill="#f6c915" font-family="DejaVu Sans Mono, monospace" font-size="13" font-weight="700">4</text>
+          <text x="49" y="62" text-anchor="middle" fill="#ffffff" font-family="DejaVu Sans, sans-serif" font-size="42" font-weight="700">L</text>
+          <text x="49" y="86" text-anchor="middle" fill="#a855f7" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="700">•••••</text>
+        </g>
+        <g transform="translate(334, 510)">
+          <rect x="0" y="0" width="98" height="98" rx="20" fill="#240c38" stroke="#582782" stroke-width="2" />
+          <text x="82" y="22" text-anchor="end" fill="#f6c915" font-family="DejaVu Sans Mono, monospace" font-size="13" font-weight="700">1</text>
+          <text x="49" y="62" text-anchor="middle" fill="#ffffff" font-family="DejaVu Sans, sans-serif" font-size="42" font-weight="700">A</text>
+          <text x="49" y="86" text-anchor="middle" fill="#a855f7" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="700">•••••</text>
+        </g>
+        <g transform="translate(444, 510)">
+          <rect x="0" y="0" width="98" height="98" rx="20" fill="#240c38" stroke="#582782" stroke-width="2" />
+          <text x="82" y="22" text-anchor="end" fill="#f6c915" font-family="DejaVu Sans Mono, monospace" font-size="13" font-weight="700">1</text>
+          <text x="49" y="62" text-anchor="middle" fill="#ffffff" font-family="DejaVu Sans, sans-serif" font-size="42" font-weight="700">G</text>
+          <text x="49" y="86" text-anchor="middle" fill="#a855f7" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="700">•••••</text>
+        </g>
+    </g>
+
+    <!-- Bottom Board Action Pills -->
+    <rect x="84" y="654" width="154" height="44" rx="14" fill="#240c38" stroke="#582782" stroke-width="1.5" />
+    <text x="161" y="681" text-anchor="middle" fill="#e9d5ff" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700">↻ Revolve 90°</text>
+
+    <rect x="252" y="654" width="154" height="44" rx="14" fill="#3b135c" stroke="#a855f7" stroke-width="1.5" />
+    <text x="329" y="681" text-anchor="middle" fill="#f6c915" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700">💡 Reveal Hint</text>
+
+    <rect x="420" y="654" width="154" height="44" rx="14" fill="#240c38" stroke="#f6c915" stroke-width="1.5" />
+    <text x="497" y="681" text-anchor="middle" fill="#f6c915" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700"># Starts</text>
+
+    <!-- Right Column: Found Words by Length & Missing Piece Featured Word -->
+    <g filter="url(#sqGlow)">
+      <rect x="614" y="150" width="538" height="548" rx="24" fill="#240c38" stroke="#4c2270" stroke-width="1.5" />
+      <!-- Featured Missing Piece Banner -->
+      <rect x="642" y="178" width="482" height="68" rx="14" fill="#190826" stroke="#f6c915" stroke-width="1.5" />
+      <text x="666" y="206" fill="#f6c915" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="700">★ DAILY MISSING PIECE (7 LETTERS)</text>
+      <text x="666" y="232" fill="#ffffff" font-family="DejaVu Sans Mono, monospace" font-size="20" font-weight="700" letter-spacing="6">G A R L A N D</text>
+
+      <!-- Rank Progress Bar -->
+      <text x="642" y="282" fill="#ffffff" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="700">Current Rank: Word Architect (40%)</text>
+      <rect x="642" y="296" width="482" height="14" rx="7" fill="#190826" />
+      <rect x="642" y="296" width="220" height="14" rx="7" fill="#f6c915" />
+
+      <!-- Word Length Groups -->
+      <text x="642" y="348" fill="#f6c915" font-family="DejaVu Sans Mono, monospace" font-size="13" font-weight="700">4-LETTER WORDS (8 / 14)</text>
+      <rect x="642" y="362" width="110" height="36" rx="8" fill="#32124d" />
+      <text x="697" y="385" text-anchor="middle" fill="#ffffff" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="700">STAR</text>
+      <rect x="762" y="362" width="110" height="36" rx="8" fill="#32124d" />
+      <text x="817" y="385" text-anchor="middle" fill="#ffffff" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="700">LEND</text>
+      <rect x="882" y="362" width="110" height="36" rx="8" fill="#32124d" />
+      <text x="937" y="385" text-anchor="middle" fill="#ffffff" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="700">SLAG</text>
+      <rect x="1002" y="362" width="110" height="36" rx="8" fill="#190826" stroke="#4c2270" stroke-width="1" />
+      <text x="1057" y="385" text-anchor="middle" fill="#a855f7" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="700">R • • •</text>
+
+      <text x="642" y="438" fill="#f6c915" font-family="DejaVu Sans Mono, monospace" font-size="13" font-weight="700">5-LETTER WORDS (5 / 12)</text>
+      <rect x="642" y="452" width="132" height="36" rx="8" fill="#32124d" />
+      <text x="708" y="475" text-anchor="middle" fill="#ffffff" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="700">TREND</text>
+      <rect x="784" y="452" width="132" height="36" rx="8" fill="#32124d" />
+      <text x="850" y="475" text-anchor="middle" fill="#ffffff" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="700">SNARE</text>
+      <rect x="926" y="452" width="132" height="36" rx="8" fill="#190826" stroke="#4c2270" stroke-width="1" />
+      <text x="992" y="475" text-anchor="middle" fill="#a855f7" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="700">S L • • •</text>
+
+      <text x="642" y="528" fill="#f6c915" font-family="DejaVu Sans Mono, monospace" font-size="13" font-weight="700">6-LETTER WORDS (3 / 8)</text>
+      <rect x="642" y="542" width="150" height="36" rx="8" fill="#32124d" />
+      <text x="717" y="565" text-anchor="middle" fill="#ffffff" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="700">STRAND</text>
+      <rect x="804" y="542" width="150" height="36" rx="8" fill="#190826" stroke="#4c2270" stroke-width="1" />
+      <text x="879" y="565" text-anchor="middle" fill="#a855f7" font-family="DejaVu Sans Mono, monospace" font-size="14" font-weight="700">L E • • • •</text>
+
+      <!-- Dictionary Inspector Preview -->
+      <rect x="642" y="604" width="482" height="68" rx="12" fill="#190826" stroke="#582782" stroke-width="1" />
+      <text x="664" y="630" fill="#f6c915" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700">📖 Click any found word to view its dictionary definition</text>
+      <text x="664" y="652" fill="#d8b4fe" font-family="DejaVu Sans, sans-serif" font-size="12">STRAND (noun): A single thin length of thread, fiber, or wire; or a shore.</text>
+    </g>
+  </g>
+</svg>

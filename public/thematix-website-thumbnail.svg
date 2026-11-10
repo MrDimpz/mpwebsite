@@ -1,0 +1,326 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" width="1200" height="720">
+  <defs>
+    <clipPath id="tmClip">
+      <rect x="0" y="0" width="1200" height="720" rx="16" />
+    </clipPath>
+    <linearGradient id="tmBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#250838" />
+      <stop offset="55%" stop-color="#1e052e" />
+      <stop offset="100%" stop-color="#140220" />
+    </linearGradient>
+    <filter id="tmShadow" x="-10%" y="-10%" width="120%" height="125%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#090110" flood-opacity="0.45" />
+    </filter>
+  </defs>
+  <g clip-path="url(#tmClip)">
+    <!-- Background -->
+    <rect x="0" y="0" width="1200" height="720" fill="url(#tmBg)" />
+
+    <!-- Browser Top Bar -->
+    <rect x="0" y="0" width="1200" height="44" fill="#12021c" />
+    <circle cx="24" cy="22" r="6" fill="#ff5f56" />
+    <circle cx="44" cy="22" r="6" fill="#ffbd2e" />
+    <circle cx="64" cy="22" r="6" fill="#27c93f" />
+    <rect x="320" y="9" width="560" height="26" rx="6" fill="#240836" stroke="#4c1d6e" stroke-width="1" />
+    <text x="600" y="26" text-anchor="middle" fill="#f3e8ff" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="600">themissingpiece.fun/solo-games/thematix</text>
+
+    <!-- Thematix Top Nav Bar -->
+    <rect x="0" y="44" width="1200" height="62" fill="#180424" stroke="#f5b82e" stroke-opacity="0.3" stroke-width="1" />
+    <circle cx="96" cy="75" r="19" fill="#3b0f54" stroke="#f5b82e" stroke-width="2" />
+    <text x="96" y="81" text-anchor="middle" fill="#f5b82e" font-family="DejaVu Serif, Georgia, serif" font-size="15" font-weight="700">✦</text>
+    <text x="128" y="71" fill="#f5b82e" font-family="DejaVu Serif, Georgia, serif" font-size="15" font-weight="700">THE MISSING PIECE</text>
+    <text x="128" y="88" fill="#d8b4fe" font-family="DejaVu Sans, sans-serif" font-size="10" font-weight="700" letter-spacing="1.5">THEMATIX · WORD ASSOCIATION</text>
+
+    <rect x="650" y="58" width="144" height="34" rx="17" fill="#2a073a" stroke="#6b21a8" stroke-width="1.2" />
+    <text x="722" y="80" text-anchor="middle" fill="#f5b82e" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700">🔥 Hard Mode: OFF</text>
+
+    <rect x="808" y="58" width="176" height="34" rx="17" fill="#2a073a" stroke="#6b21a8" stroke-width="1.2" />
+    <text x="896" y="80" text-anchor="middle" fill="#ffffff" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="700">Daily Archive ▾</text>
+
+    <rect x="998" y="58" width="142" height="34" rx="17" fill="#250634" stroke="#f5b82e" stroke-opacity="0.4" stroke-width="1.2" />
+    <text x="1069" y="80" text-anchor="middle" fill="#fde68a" font-family="DejaVu Sans Mono, monospace" font-size="11.5" font-weight="700">⏱ 00:00 UK</text>
+
+    <!-- Left Board Area -->
+    <text x="78" y="152" fill="#ffffff" font-family="DejaVu Sans, sans-serif" font-size="28" font-weight="700">"___ or treat!"</text>
+
+    <!-- Theme Word Row -->
+    
+        <g transform="translate(78, 170)">
+          <rect x="0" y="0" width="56" height="54" rx="8" fill="#f5b82e" stroke="#fef08a" stroke-width="2" />
+          <text x="28" y="38" text-anchor="middle" fill="#220536" font-family="DejaVu Sans Mono, monospace" font-size="30" font-weight="700">T</text>
+        </g>
+      <g transform="translate(144, 170)">
+        <rect x="0" y="0" width="56" height="54" rx="8" fill="#5e1d85" stroke="#f5b82e" stroke-width="2" />
+      </g>
+        <g transform="translate(210, 170)">
+          <rect x="0" y="0" width="56" height="54" rx="8" fill="#f5b82e" stroke="#fef08a" stroke-width="2" />
+          <text x="28" y="38" text-anchor="middle" fill="#220536" font-family="DejaVu Sans Mono, monospace" font-size="30" font-weight="700">I</text>
+        </g>
+        <g transform="translate(276, 170)">
+          <rect x="0" y="0" width="56" height="54" rx="8" fill="#f5b82e" stroke="#fef08a" stroke-width="2" />
+          <text x="28" y="38" text-anchor="middle" fill="#220536" font-family="DejaVu Sans Mono, monospace" font-size="30" font-weight="700">C</text>
+        </g>
+      <g transform="translate(342, 170)">
+        <rect x="0" y="0" width="56" height="54" rx="8" fill="#5e1d85" stroke="#f5b82e" stroke-width="2" />
+      </g><rect x="408" y="170" width="56" height="54" rx="8" fill="#160224" fill-opacity="0.65" stroke="#3b0764" stroke-width="1" /><rect x="474" y="170" width="56" height="54" rx="8" fill="#160224" fill-opacity="0.65" stroke="#3b0764" stroke-width="1" />
+
+    <!-- Golden Divider -->
+    <rect x="78" y="242" width="452" height="4" rx="2" fill="#f5b82e" />
+
+    <!-- 6 Alphabetical Word Rows -->
+    
+        <g transform="translate(78, 264)">
+          <rect x="0" y="0" width="56" height="54" rx="8" fill="#f5b82e" stroke="#fef08a" stroke-width="2" />
+          <text x="28" y="38" text-anchor="middle" fill="#220536" font-family="DejaVu Sans Mono, monospace" font-size="30" font-weight="700">C</text>
+        </g>
+        <g transform="translate(144, 264)">
+          <rect x="0" y="0" width="56" height="54" rx="8" fill="#f5b82e" stroke="#fef08a" stroke-width="2" />
+          <text x="28" y="38" text-anchor="middle" fill="#220536" font-family="DejaVu Sans Mono, monospace" font-size="30" font-weight="700">A</text>
+        </g>
+      <g transform="translate(210, 264)">
+        <rect x="0" y="0" width="56" height="54" rx="8" fill="#5e1d85" stroke="#f5b82e" stroke-width="2" />
+      </g>
+      <g transform="translate(276, 264)">
+        <rect x="0" y="0" width="56" height="54" rx="8" fill="#5e1d85" stroke="#f5b82e" stroke-width="2" />
+      </g>
+      <g transform="translate(342, 264)">
+        <rect x="0" y="0" width="56" height="54" rx="8" fill="#5e1d85" stroke="#f5b82e" stroke-width="2" />
+      </g><rect x="408" y="264" width="56" height="54" rx="8" fill="#160224" fill-opacity="0.65" stroke="#3b0764" stroke-width="1" /><rect x="474" y="264" width="56" height="54" rx="8" fill="#160224" fill-opacity="0.65" stroke="#3b0764" stroke-width="1" />
+        <g transform="translate(78, 326)">
+          <rect x="0" y="0" width="56" height="54" rx="8" fill="#f5b82e" stroke="#fef08a" stroke-width="2" />
+          <text x="28" y="38" text-anchor="middle" fill="#220536" font-family="DejaVu Sans Mono, monospace" font-size="30" font-weight="700">C</text>
+        </g>
+      <g transform="translate(144, 326)">
+        <rect x="0" y="0" width="56" height="54" rx="8" fill="#5e1d85" stroke="#f5b82e" stroke-width="2" />
+      </g>
+        <g transform="translate(210, 326)">
+          <rect x="0" y="0" width="56" height="54" rx="8" fill="#f5b82e" stroke="#fef08a" stroke-width="2" />
+          <text x="28" y="38" text-anchor="middle" fill="#220536" font-family="DejaVu Sans Mono, monospace" font-size="30" font-weight="700">S</text>
+        </g>
+        <g transform="translate(276, 326)">
+          <rect x="0" y="0" width="56" height="54" rx="8" fill="#f5b82e" stroke="#fef08a" stroke-width="2" />
+          <text x="28" y="38" text-anchor="middle" fill="#220536" font-family="DejaVu Sans Mono, monospace" font-size="30" font-weight="700">T</text>
+        </g>
+      <g transform="translate(342, 326)">
+        <rect x="0" y="0" width="56" height="54" rx="8" fill="#5e1d85" stroke="#f5b82e" stroke-width="2" />
+      </g>
+      <g transform="translate(408, 326)">
+        <rect x="0" y="0" width="56" height="54" rx="8" fill="#5e1d85" stroke="#f5b82e" stroke-width="2" />
+      </g>
+        <g transform="translate(474, 326)">
+          <rect x="0" y="0" width="56" height="54" rx="8" fill="#f5b82e" stroke="#fef08a" stroke-width="2" />
+          <text x="28" y="38" text-anchor="middle" fill="#220536" font-family="DejaVu Sans Mono, monospace" font-size="30" font-weight="700">E</text>
+        </g>
+      <g transform="translate(78, 388)">
+        <rect x="0" y="0" width="56" height="54" rx="8" fill="#5e1d85" stroke="#f5b82e" stroke-width="2" />
+      </g>
+      <g transform="translate(144, 388)">
+        <rect x="0" y="0" width="56" height="54" rx="8" fill="#5e1d85" stroke="#f5b82e" stroke-width="2" />
+      </g>
+      <g transform="translate(210, 388)">
+        <rect x="0" y="0" width="56" height="54" rx="8" fill="#5e1d85" stroke="#f5b82e" stroke-width="2" />
+      </g>
+        <g transform="translate(276, 388)">
+          <rect x="0" y="0" width="56" height="54" rx="8" fill="#f5b82e" stroke="#fef08a" stroke-width="2" />
+          <text x="28" y="38" text-anchor="middle" fill="#220536" font-family="DejaVu Sans Mono, monospace" font-size="30" font-weight="700">S</text>
+        </g>
+        <g transform="translate(342, 388)">
+          <rect x="0" y="0" width="56" height="54" rx="8" fill="#f5b82e" stroke="#fef08a" stroke-width="2" />
+          <text x="28" y="38" text-anchor="middle" fill="#220536" font-family="DejaVu Sans Mono, monospace" font-size="30" font-weight="700">T</text>
+        </g><rect x="408" y="388" width="56" height="54" rx="8" fill="#160224" fill-opacity="0.65" stroke="#3b0764" stroke-width="1" /><rect x="474" y="388" width="56" height="54" rx="8" fill="#160224" fill-opacity="0.65" stroke="#3b0764" stroke-width="1" />
+      <g transform="translate(78, 450)">
+        <rect x="0" y="0" width="56" height="54" rx="8" fill="#5e1d85" stroke="#f5b82e" stroke-width="2" />
+      </g>
+        <g transform="translate(144, 450)">
+          <rect x="0" y="0" width="56" height="54" rx="8" fill="#f5b82e" stroke="#fef08a" stroke-width="2" />
+          <text x="28" y="38" text-anchor="middle" fill="#220536" font-family="DejaVu Sans Mono, monospace" font-size="30" font-weight="700">A</text>
+        </g>
+        <g transform="translate(210, 450)">
+          <rect x="0" y="0" width="56" height="54" rx="8" fill="#f5b82e" stroke="#fef08a" stroke-width="2" />
+          <text x="28" y="38" text-anchor="middle" fill="#220536" font-family="DejaVu Sans Mono, monospace" font-size="30" font-weight="700">S</text>
+        </g>
+      <g transform="translate(276, 450)">
+        <rect x="0" y="0" width="56" height="54" rx="8" fill="#5e1d85" stroke="#f5b82e" stroke-width="2" />
+      </g><rect x="342" y="450" width="56" height="54" rx="8" fill="#160224" fill-opacity="0.65" stroke="#3b0764" stroke-width="1" /><rect x="408" y="450" width="56" height="54" rx="8" fill="#160224" fill-opacity="0.65" stroke="#3b0764" stroke-width="1" /><rect x="474" y="450" width="56" height="54" rx="8" fill="#160224" fill-opacity="0.65" stroke="#3b0764" stroke-width="1" />
+      <g transform="translate(78, 512)">
+        <rect x="0" y="0" width="56" height="54" rx="8" fill="#5e1d85" stroke="#f5b82e" stroke-width="2" />
+      </g>
+      <g transform="translate(144, 512)">
+        <rect x="0" y="0" width="56" height="54" rx="8" fill="#5e1d85" stroke="#f5b82e" stroke-width="2" />
+      </g>
+      <g transform="translate(210, 512)">
+        <rect x="0" y="0" width="56" height="54" rx="8" fill="#5e1d85" stroke="#f5b82e" stroke-width="2" />
+      </g>
+      <g transform="translate(276, 512)">
+        <rect x="0" y="0" width="56" height="54" rx="8" fill="#5e1d85" stroke="#f5b82e" stroke-width="2" />
+      </g>
+      <g transform="translate(342, 512)">
+        <rect x="0" y="0" width="56" height="54" rx="8" fill="#5e1d85" stroke="#f5b82e" stroke-width="2" />
+      </g>
+        <g transform="translate(408, 512)">
+          <rect x="0" y="0" width="56" height="54" rx="8" fill="#f5b82e" stroke="#fef08a" stroke-width="2" />
+          <text x="28" y="38" text-anchor="middle" fill="#220536" font-family="DejaVu Sans Mono, monospace" font-size="30" font-weight="700">I</text>
+        </g>
+      <g transform="translate(474, 512)">
+        <rect x="0" y="0" width="56" height="54" rx="8" fill="#5e1d85" stroke="#f5b82e" stroke-width="2" />
+      </g>
+        <g transform="translate(78, 574)">
+          <rect x="0" y="0" width="56" height="54" rx="8" fill="#f5b82e" stroke="#fef08a" stroke-width="2" />
+          <text x="28" y="38" text-anchor="middle" fill="#220536" font-family="DejaVu Sans Mono, monospace" font-size="30" font-weight="700">S</text>
+        </g>
+      <g transform="translate(144, 574)">
+        <rect x="0" y="0" width="56" height="54" rx="8" fill="#5e1d85" stroke="#f5b82e" stroke-width="2" />
+      </g>
+      <g transform="translate(210, 574)">
+        <rect x="0" y="0" width="56" height="54" rx="8" fill="#5e1d85" stroke="#f5b82e" stroke-width="2" />
+      </g>
+      <g transform="translate(276, 574)">
+        <rect x="0" y="0" width="56" height="54" rx="8" fill="#5e1d85" stroke="#f5b82e" stroke-width="2" />
+      </g>
+      <g transform="translate(342, 574)">
+        <rect x="0" y="0" width="56" height="54" rx="8" fill="#5e1d85" stroke="#f5b82e" stroke-width="2" />
+      </g>
+      <g transform="translate(408, 574)">
+        <rect x="0" y="0" width="56" height="54" rx="8" fill="#5e1d85" stroke="#f5b82e" stroke-width="2" />
+      </g><rect x="474" y="574" width="56" height="54" rx="8" fill="#160224" fill-opacity="0.65" stroke="#3b0764" stroke-width="1" />
+
+    <!-- Speech Bubble Footer under Grid -->
+    <rect x="210" y="648" width="210" height="38" rx="19" fill="#3d0f57" stroke="#f5b82e" stroke-width="1.5" />
+    <text x="315" y="672" text-anchor="middle" fill="#f5b82e" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700">Guess a letter</text>
+
+    <!-- Right Sidebar: Guess / Fill Mode & Keyboard -->
+    <g filter="url(#tmShadow)">
+      <rect x="596" y="132" width="544" height="554" rx="22" fill="#2d0a42" stroke="#6b21a8" stroke-width="1.5" />
+
+      <!-- Guess / Fill Mode Segmented Control -->
+      <rect x="630" y="164" width="230" height="52" rx="14" fill="#f5b82e" />
+      <text x="745" y="196" text-anchor="middle" fill="#220536" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="700">🔍 Guess Mode</text>
+
+      <rect x="876" y="164" width="230" height="52" rx="14" fill="#1e052e" stroke="#6b21a8" stroke-width="1.5" />
+      <text x="991" y="196" text-anchor="middle" fill="#e9d5ff" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="700">⌨️ Fill Mode</text>
+
+      <!-- Guesses Counter Banner -->
+      <rect x="630" y="236" width="476" height="64" rx="14" fill="#1e052e" stroke="#581c87" stroke-width="1.2" />
+      <text x="656" y="264" fill="#d8b4fe" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="700">LETTERS GUESSED</text>
+      <text x="656" y="286" fill="#ffffff" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="600">6 alphabetical words · Tied to the top theme word</text>
+      <text x="1080" y="278" text-anchor="end" fill="#f5b82e" font-family="DejaVu Sans Mono, monospace" font-size="28" font-weight="700">6</text>
+
+      <!-- On-Screen QWERTY Keyboard Preview -->
+      
+            <g transform="translate(630, 326)">
+              <rect x="0" y="0" width="42" height="48" rx="8" fill="#4a156b" stroke="#7e22ce" stroke-width="1.5" />
+              <text x="21" y="30" text-anchor="middle" fill="#ffffff" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="700">Q</text>
+            </g>
+            <g transform="translate(678, 326)">
+              <rect x="0" y="0" width="42" height="48" rx="8" fill="#4a156b" stroke="#7e22ce" stroke-width="1.5" />
+              <text x="21" y="30" text-anchor="middle" fill="#ffffff" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="700">W</text>
+            </g>
+            <g transform="translate(726, 326)">
+              <rect x="0" y="0" width="42" height="48" rx="8" fill="#f5b82e" stroke="#fef08a" stroke-width="1.5" />
+              <text x="21" y="30" text-anchor="middle" fill="#220536" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="700">E</text>
+            </g>
+            <g transform="translate(774, 326)">
+              <rect x="0" y="0" width="42" height="48" rx="8" fill="#4a156b" stroke="#7e22ce" stroke-width="1.5" />
+              <text x="21" y="30" text-anchor="middle" fill="#ffffff" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="700">R</text>
+            </g>
+            <g transform="translate(822, 326)">
+              <rect x="0" y="0" width="42" height="48" rx="8" fill="#f5b82e" stroke="#fef08a" stroke-width="1.5" />
+              <text x="21" y="30" text-anchor="middle" fill="#220536" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="700">T</text>
+            </g>
+            <g transform="translate(870, 326)">
+              <rect x="0" y="0" width="42" height="48" rx="8" fill="#4a156b" stroke="#7e22ce" stroke-width="1.5" />
+              <text x="21" y="30" text-anchor="middle" fill="#ffffff" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="700">Y</text>
+            </g>
+            <g transform="translate(918, 326)">
+              <rect x="0" y="0" width="42" height="48" rx="8" fill="#4a156b" stroke="#7e22ce" stroke-width="1.5" />
+              <text x="21" y="30" text-anchor="middle" fill="#ffffff" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="700">U</text>
+            </g>
+            <g transform="translate(966, 326)">
+              <rect x="0" y="0" width="42" height="48" rx="8" fill="#f5b82e" stroke="#fef08a" stroke-width="1.5" />
+              <text x="21" y="30" text-anchor="middle" fill="#220536" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="700">I</text>
+            </g>
+            <g transform="translate(1014, 326)">
+              <rect x="0" y="0" width="42" height="48" rx="8" fill="#4a156b" stroke="#7e22ce" stroke-width="1.5" />
+              <text x="21" y="30" text-anchor="middle" fill="#ffffff" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="700">O</text>
+            </g>
+            <g transform="translate(1062, 326)">
+              <rect x="0" y="0" width="42" height="48" rx="8" fill="#4a156b" stroke="#7e22ce" stroke-width="1.5" />
+              <text x="21" y="30" text-anchor="middle" fill="#ffffff" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="700">P</text>
+            </g>
+            <g transform="translate(654, 384)">
+              <rect x="0" y="0" width="42" height="48" rx="8" fill="#f5b82e" stroke="#fef08a" stroke-width="1.5" />
+              <text x="21" y="30" text-anchor="middle" fill="#220536" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="700">A</text>
+            </g>
+            <g transform="translate(702, 384)">
+              <rect x="0" y="0" width="42" height="48" rx="8" fill="#f5b82e" stroke="#fef08a" stroke-width="1.5" />
+              <text x="21" y="30" text-anchor="middle" fill="#220536" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="700">S</text>
+            </g>
+            <g transform="translate(750, 384)">
+              <rect x="0" y="0" width="42" height="48" rx="8" fill="#4a156b" stroke="#7e22ce" stroke-width="1.5" />
+              <text x="21" y="30" text-anchor="middle" fill="#ffffff" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="700">D</text>
+            </g>
+            <g transform="translate(798, 384)">
+              <rect x="0" y="0" width="42" height="48" rx="8" fill="#4a156b" stroke="#7e22ce" stroke-width="1.5" />
+              <text x="21" y="30" text-anchor="middle" fill="#ffffff" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="700">F</text>
+            </g>
+            <g transform="translate(846, 384)">
+              <rect x="0" y="0" width="42" height="48" rx="8" fill="#4a156b" stroke="#7e22ce" stroke-width="1.5" />
+              <text x="21" y="30" text-anchor="middle" fill="#ffffff" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="700">G</text>
+            </g>
+            <g transform="translate(894, 384)">
+              <rect x="0" y="0" width="42" height="48" rx="8" fill="#4a156b" stroke="#7e22ce" stroke-width="1.5" />
+              <text x="21" y="30" text-anchor="middle" fill="#ffffff" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="700">H</text>
+            </g>
+            <g transform="translate(942, 384)">
+              <rect x="0" y="0" width="42" height="48" rx="8" fill="#4a156b" stroke="#7e22ce" stroke-width="1.5" />
+              <text x="21" y="30" text-anchor="middle" fill="#ffffff" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="700">J</text>
+            </g>
+            <g transform="translate(990, 384)">
+              <rect x="0" y="0" width="42" height="48" rx="8" fill="#4a156b" stroke="#7e22ce" stroke-width="1.5" />
+              <text x="21" y="30" text-anchor="middle" fill="#ffffff" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="700">K</text>
+            </g>
+            <g transform="translate(1038, 384)">
+              <rect x="0" y="0" width="42" height="48" rx="8" fill="#4a156b" stroke="#7e22ce" stroke-width="1.5" />
+              <text x="21" y="30" text-anchor="middle" fill="#ffffff" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="700">L</text>
+            </g>
+            <g transform="translate(702, 442)">
+              <rect x="0" y="0" width="42" height="48" rx="8" fill="#4a156b" stroke="#7e22ce" stroke-width="1.5" />
+              <text x="21" y="30" text-anchor="middle" fill="#ffffff" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="700">Z</text>
+            </g>
+            <g transform="translate(750, 442)">
+              <rect x="0" y="0" width="42" height="48" rx="8" fill="#4a156b" stroke="#7e22ce" stroke-width="1.5" />
+              <text x="21" y="30" text-anchor="middle" fill="#ffffff" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="700">X</text>
+            </g>
+            <g transform="translate(798, 442)">
+              <rect x="0" y="0" width="42" height="48" rx="8" fill="#f5b82e" stroke="#fef08a" stroke-width="1.5" />
+              <text x="21" y="30" text-anchor="middle" fill="#220536" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="700">C</text>
+            </g>
+            <g transform="translate(846, 442)">
+              <rect x="0" y="0" width="42" height="48" rx="8" fill="#4a156b" stroke="#7e22ce" stroke-width="1.5" />
+              <text x="21" y="30" text-anchor="middle" fill="#ffffff" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="700">V</text>
+            </g>
+            <g transform="translate(894, 442)">
+              <rect x="0" y="0" width="42" height="48" rx="8" fill="#4a156b" stroke="#7e22ce" stroke-width="1.5" />
+              <text x="21" y="30" text-anchor="middle" fill="#ffffff" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="700">B</text>
+            </g>
+            <g transform="translate(942, 442)">
+              <rect x="0" y="0" width="42" height="48" rx="8" fill="#4a156b" stroke="#7e22ce" stroke-width="1.5" />
+              <text x="21" y="30" text-anchor="middle" fill="#ffffff" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="700">N</text>
+            </g>
+            <g transform="translate(990, 442)">
+              <rect x="0" y="0" width="42" height="48" rx="8" fill="#4a156b" stroke="#7e22ce" stroke-width="1.5" />
+              <text x="21" y="30" text-anchor="middle" fill="#ffffff" font-family="DejaVu Sans Mono, monospace" font-size="17" font-weight="700">M</text>
+            </g>
+
+      <!-- Bottom Action Buttons -->
+      <rect x="630" y="520" width="476" height="56" rx="14" fill="#f5b82e" />
+      <text x="868" y="555" text-anchor="middle" fill="#220536" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="700">✓ Check / Solve Puzzle</text>
+
+      <rect x="630" y="592" width="230" height="48" rx="12" fill="#1e052e" stroke="#6b21a8" stroke-width="1.5" />
+      <text x="745" y="622" text-anchor="middle" fill="#e9d5ff" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700">📊 Stats &amp; Streaks</text>
+
+      <rect x="876" y="592" width="230" height="48" rx="12" fill="#1e052e" stroke="#6b21a8" stroke-width="1.5" />
+      <text x="991" y="622" text-anchor="middle" fill="#e9d5ff" font-family="DejaVu Sans, sans-serif" font-size="14" font-weight="700">✨ Custom Puzzle</text>
+    </g>
+  </g>
+</svg>

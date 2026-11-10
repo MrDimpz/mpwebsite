@@ -1,9 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
-import { ArrowLeft, LayoutGrid, Plus, Trophy } from 'lucide-react';
+import { ArrowLeft, LayoutGrid, LogIn, Plus, Trophy, User as UserIcon } from 'lucide-react';
 import type { PuzzleDefinition } from '@/data/crossword-types';
 import { CURATED_PUZZLES, getTodayIsoDate } from '@/data/puzzles';
-import { formatClock, loadLeaderboard } from '@/lib/crossword-progress';
+import {
+	formatClock,
+	loadLeaderboard,
+	syncLocalCrosswordScoresToCloud,
+} from '@/lib/crossword-progress';
+import {
+	useUnifiedAuth,
+	getCleanDisplayName,
+} from '@/lib/unified-game-auth';
+import {
+	UnifiedAuthModal,
+	UnifiedLeaderboardPanel,
+} from '@/components/solo-games/unified-auth-modal';
 import { CrosswordCatalog } from '@/components/crossword/crossword-catalog';
 import { CrosswordCreate } from '@/components/crossword/crossword-create';
 import { CrosswordPlay } from '@/components/crossword/crossword-play';
@@ -14,11 +26,20 @@ export function CrosswordGame() {
 	const [view, setView] = useState<View>('catalog');
 	const [activePuzzle, setActivePuzzle] = useState<PuzzleDefinition | null>(null);
 	const [leaderboard, setLeaderboard] = useState(() => loadLeaderboard());
+	const { user, authReady } = useUnifiedAuth();
+	const [authModalOpen, setAuthModalOpen] = useState(false);
 
-	// Refresh leaderboard whenever we return to it.
+	// Refresh local leaderboard whenever we return to it.
 	useEffect(() => {
 		if (view === 'leaderboard') setLeaderboard(loadLeaderboard());
 	}, [view]);
+
+	// Automatically sync local crossword scores to cloud when user logs in
+	useEffect(() => {
+		if (authReady && user) {
+			syncLocalCrosswordScoresToCloud(user).catch(() => {});
+		}
+	}, [authReady, user]);
 
 	const todaysPuzzle = useMemo(() => {
 		const today = getTodayIsoDate();
@@ -31,7 +52,6 @@ export function CrosswordGame() {
 	const startPlay = (puzzle: PuzzleDefinition) => {
 		setActivePuzzle(puzzle);
 		setView('play');
-		// Scroll to top so the board is in view.
 		if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
 	};
 
@@ -50,9 +70,24 @@ export function CrosswordGame() {
 
 	return (
 		<section className="crossword-page" aria-labelledby="crossword-title">
-			<Link to="/solo-games" className="solo-back">
-				<ArrowLeft size={16} /> Back to solo games
-			</Link>
+			<div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+				<Link to="/solo-games" className="solo-back">
+					<ArrowLeft size={16} /> Back to solo games
+				</Link>
+
+				<button
+					type="button"
+					onClick={() => setAuthModalOpen(true)}
+					className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#2B0938] text-[#F6C915] border border-[#D4A437] text-xs font-bold shadow-xs hover:opacity-95 transition-opacity cursor-pointer"
+				>
+					{user ? <UserIcon size={15} /> : <LogIn size={15} />}
+					<span>
+						{user
+							? `${getCleanDisplayName(user)} · Solo Pass Active`
+							: 'Sign In (Google / Email) · Sync Scores'}
+					</span>
+				</button>
+			</div>
 
 			<div className="crossword-head">
 				<p className="eyebrow">
@@ -62,7 +97,7 @@ export function CrosswordGame() {
 				<p>
 					The full MrDimpz/Crossword experience: a rolling 21-day archive of Standard 20×20
 					and Quick 8×8 puzzles, five clue styles from Easy to Cryptic, four visual themes,
-					timed scoring, a custom-puzzle builder, and a local leaderboard. Pick an edition
+					timed scoring, a custom-puzzle builder, and a public cloud leaderboard. Pick an edition
 					below or build your own.
 				</p>
 			</div>
@@ -101,29 +136,45 @@ export function CrosswordGame() {
 			{view === 'catalog' ? <CrosswordCatalog onPlay={startPlay} /> : null}
 			{view === 'create' ? <CrosswordCreate onPlay={startPlay} /> : null}
 			{view === 'leaderboard' ? (
-				<div className="crossword-leaderboard">
-					{leaderboard.length === 0 ? (
-						<p className="leaderboard-empty">
-							No solves yet. Complete a puzzle to claim your spot on the board.
-						</p>
-					) : (
-						<ol className="leaderboard-list">
-							{leaderboard.map((entry, idx) => (
-								<li key={entry.id} className="leaderboard-row">
-									<span className="leaderboard-rank">{idx + 1}</span>
-									<div className="leaderboard-main">
-										<span className="leaderboard-title">{entry.puzzleTitle}</span>
-										<span className="leaderboard-meta">
-											{entry.gridSize}×{entry.gridSize} · {entry.clueDifficulty} · {formatClock(entry.timeSeconds)}
-										</span>
-									</div>
-									<span className="leaderboard-score">{entry.score.toLocaleString('en-GB')}</span>
-								</li>
-							))}
-						</ol>
+				<div className="space-y-8">
+					{/* Global Public Visitor Leaderboard */}
+					<UnifiedLeaderboardPanel
+						initialGameId="crossword"
+						currentUser={user}
+						onRequestSignIn={() => setAuthModalOpen(true)}
+					/>
+
+					{/* Local Device History */}
+					{leaderboard.length > 0 && (
+						<div className="crossword-leaderboard">
+							<h3 className="text-sm font-bold uppercase tracking-wider mb-3 opacity-80">
+								Your Local Device Solves
+							</h3>
+							<ol className="leaderboard-list">
+								{leaderboard.map((entry, idx) => (
+									<li key={entry.id} className="leaderboard-row">
+										<span className="leaderboard-rank">{idx + 1}</span>
+										<div className="leaderboard-main">
+											<span className="leaderboard-title">{entry.puzzleTitle}</span>
+											<span className="leaderboard-meta">
+												{entry.gridSize}×{entry.gridSize} · {entry.clueDifficulty} · {formatClock(entry.timeSeconds)}
+											</span>
+										</div>
+										<span className="leaderboard-score">{entry.score.toLocaleString('en-GB')}</span>
+									</li>
+								))}
+							</ol>
+						</div>
 					)}
 				</div>
 			) : null}
+
+			<UnifiedAuthModal
+				isOpen={authModalOpen}
+				onClose={() => setAuthModalOpen(false)}
+				user={user}
+				initialGameId="crossword"
+			/>
 		</section>
 	);
 }

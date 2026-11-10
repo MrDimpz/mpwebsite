@@ -1,0 +1,139 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidDocId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_-]+$');
+    }
+
+    function isValidLeaderboardShape(data) {
+      let keys = [
+        'userId',
+        'displayName',
+        'gameId',
+        'puzzleId',
+        'puzzleTitle',
+        'score',
+        'metricLabel',
+        'subMetricLabel',
+        'createdAt',
+        'updatedAt'
+      ];
+      return data.keys().hasAll(keys)
+        && data.keys().hasOnly(keys)
+        && data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 64 && data.userId.matches('^[a-zA-Z0-9_-]+$')
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 60
+        && data.gameId is string && data.gameId in ['crossword', 'rebus', 'squared', 'thematix']
+        && data.puzzleId is string && data.puzzleId.size() >= 1 && data.puzzleId.size() <= 64 && data.puzzleId.matches('^[a-zA-Z0-9_-]+$')
+        && data.puzzleTitle is string && data.puzzleTitle.size() >= 1 && data.puzzleTitle.size() <= 100
+        && data.score is int && data.score >= 0 && data.score <= 1000000
+        && data.metricLabel is string && data.metricLabel.size() >= 1 && data.metricLabel.size() <= 60
+        && data.subMetricLabel is string && data.subMetricLabel.size() >= 1 && data.subMetricLabel.size() <= 80
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidHighScoreShape(data) {
+      let keys = [
+        'userId',
+        'displayName',
+        'puzzleId',
+        'mode',
+        'score',
+        'wordsFound',
+        'totalWords',
+        'bonusWordsCount',
+        'foundFeatured',
+        'createdAt',
+        'updatedAt'
+      ];
+      return data.keys().hasAll(keys)
+        && data.keys().hasOnly(keys)
+        && data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 64 && data.userId.matches('^[a-zA-Z0-9_-]+$')
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 60
+        && data.puzzleId is string && data.puzzleId.size() >= 1 && data.puzzleId.size() <= 64 && data.puzzleId.matches('^[a-zA-Z0-9_-]+$')
+        && data.mode is string && data.mode in ['express-3x3', 'daily-4x4', 'royal-5x5']
+        && data.score is int && data.score >= 0 && data.score <= 100000
+        && data.wordsFound is int && data.wordsFound >= 0 && data.wordsFound <= 500
+        && data.totalWords is int && data.totalWords >= 1 && data.totalWords <= 500
+        && data.wordsFound <= data.totalWords
+        && data.bonusWordsCount is int && data.bonusWordsCount >= 0 && data.bonusWordsCount <= 500
+        && data.foundFeatured is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // Unified Solo Games Leaderboard (publicly readable by visitors; contains no PII)
+    match /leaderboard/{entryId} {
+      allow get: if true;
+      allow list: if true;
+
+      allow create: if isSignedIn()
+        && isValidDocId(entryId)
+        && isValidLeaderboardShape(incoming())
+        && incoming().userId == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isSignedIn()
+        && isValidDocId(entryId)
+        && isValidLeaderboardShape(incoming())
+        && existing().userId == request.auth.uid
+        && incoming().userId == existing().userId
+        && incoming().gameId == existing().gameId
+        && incoming().puzzleId == existing().puzzleId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().score >= existing().score;
+
+      allow delete: if isSignedIn()
+        && existing().userId == request.auth.uid;
+    }
+
+    // Squared Detailed High Scores (publicly readable by visitors; contains no PII)
+    match /highscores/{scoreId} {
+      allow get: if true;
+      allow list: if true;
+
+      allow create: if isSignedIn()
+        && isValidDocId(scoreId)
+        && isValidHighScoreShape(incoming())
+        && incoming().userId == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isSignedIn()
+        && isValidDocId(scoreId)
+        && isValidHighScoreShape(incoming())
+        && existing().userId == request.auth.uid
+        && incoming().userId == existing().userId
+        && incoming().puzzleId == existing().puzzleId
+        && incoming().mode == existing().mode
+        && incoming().totalWords == existing().totalWords
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().score >= existing().score;
+
+      allow delete: if isSignedIn()
+        && existing().userId == request.auth.uid;
+    }
+  }
+}

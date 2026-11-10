@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" width="1200" height="720">
+  <defs>
+    <clipPath id="rebusClip">
+      <rect x="0" y="0" width="1200" height="720" rx="16" />
+    </clipPath>
+    <filter id="rebusShadow" x="-10%" y="-10%" width="120%" height="125%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#1e092b" flood-opacity="0.22" />
+    </filter>
+    <linearGradient id="rebusHeaderGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#360B42" />
+      <stop offset="100%" stop-color="#4A1259" />
+    </linearGradient>
+  </defs>
+  <g clip-path="url(#rebusClip)">
+    <!-- Background Canvas -->
+    <rect x="0" y="0" width="1200" height="720" fill="#F6F4FA" />
+
+    <!-- Browser Top Bar -->
+    <rect x="0" y="0" width="1200" height="44" fill="#1e1b2e" />
+    <circle cx="24" cy="22" r="6" fill="#ff5f56" />
+    <circle cx="44" cy="22" r="6" fill="#ffbd2e" />
+    <circle cx="64" cy="22" r="6" fill="#27c93f" />
+    <rect x="320" y="9" width="560" height="26" rx="6" fill="#2d283e" stroke="#453e5c" stroke-width="1" />
+    <text x="600" y="26" text-anchor="middle" fill="#e2e8f0" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="600">themissingpiece.fun/solo-games/rebus</text>
+
+    <!-- App Header Bar -->
+    <rect x="0" y="44" width="1200" height="74" fill="#ffffff" stroke="#E2DCEB" stroke-width="1.5" />
+    <circle cx="82" cy="81" r="22" fill="#4A1259" stroke="#EAB308" stroke-width="2.5" />
+    <text x="82" y="87" text-anchor="middle" fill="#EAB308" font-family="DejaVu Serif, Georgia, serif" font-size="16" font-weight="700">✦</text>
+    <text x="118" y="77" fill="#18181B" font-family="DejaVu Serif, Georgia, serif" font-size="22" font-weight="700">Missing Rebus</text>
+    <text x="118" y="97" fill="#6b5e69" font-family="DejaVu Sans, sans-serif" font-size="12" font-weight="600">THE MISSING PIECE · 733+ REBUS ARCHIVE &amp; WORKSHEETS</text>
+
+    <!-- Navigation Tabs -->
+    <rect x="520" y="62" width="112" height="38" rx="10" fill="#4A1259" />
+    <text x="576" y="86" text-anchor="middle" fill="#ffffff" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700">Play (733)</text>
+    <text x="690" y="86" text-anchor="middle" fill="#4A1259" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="600">Archive (733)</text>
+    <text x="815" y="86" text-anchor="middle" fill="#4A1259" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="600">Worksheets (53)</text>
+
+    <!-- 5-Round Sprint CTA -->
+    <rect x="970" y="60" width="176" height="42" rx="12" fill="#EAB308" stroke="#4A1259" stroke-width="1.5" />
+    <text x="1058" y="86" text-anchor="middle" fill="#360B42" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700">⚡ 5-Round Sprint</text>
+
+    <!-- Main Left Stage Card -->
+    <g filter="url(#rebusShadow)">
+      <rect x="54" y="144" width="690" height="532" rx="20" fill="#ffffff" stroke="#E2DCEB" stroke-width="1.5" />
+      <!-- Stage Top Meta -->
+      <rect x="54" y="144" width="690" height="54" rx="20" fill="#F2EEF8" />
+      <text x="82" y="177" fill="#4A1259" font-family="DejaVu Sans Mono, monospace" font-size="13" font-weight="700">REBUS CHALLENGE #14  ·  TYPOGRAPHIC REBUS</text>
+      <text x="630" y="177" fill="#B45309" font-family="DejaVu Sans Mono, monospace" font-size="13" font-weight="700">+100 PTS</text>
+
+      <!-- Visual Rebus Puzzle Canvas -->
+      <rect x="86" y="218" width="626" height="270" rx="16" fill="#FAF8FC" stroke="#4A1259" stroke-width="2" />
+      <text x="399" y="295" text-anchor="middle" fill="#4A1259" font-family="DejaVu Serif, Georgia, serif" font-size="52" font-weight="700" letter-spacing="6">HEAD</text>
+      <line x1="250" y1="322" x2="548" y2="322" stroke="#EAB308" stroke-width="5" stroke-linecap="round" />
+      <text x="399" y="382" text-anchor="middle" fill="#4A1259" font-family="DejaVu Serif, Georgia, serif" font-size="52" font-weight="700" letter-spacing="6">HEELS</text>
+      <text x="399" y="446" text-anchor="middle" fill="#6b5e69" font-family="DejaVu Sans Mono, monospace" font-size="13" font-weight="600">WORD LENGTHS: (4, 4, 5) · 3 WORDS</text>
+
+      <!-- Answer Input & Submit -->
+      <rect x="86" y="512" width="464" height="54" rx="12" fill="#F6F4FA" stroke="#4A1259" stroke-width="2" />
+      <text x="112" y="545" fill="#4A1259" font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="600">Head over heels|</text>
+      <rect x="564" y="512" width="148" height="54" rx="12" fill="#4A1259" />
+      <text x="638" y="545" text-anchor="middle" fill="#ffffff" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700">Check Answer</text>
+
+      <!-- Prev / Random / Next Row -->
+      <rect x="86" y="586" width="120" height="40" rx="10" fill="#F2EEF8" />
+      <text x="146" y="611" text-anchor="middle" fill="#4A1259" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700">← Previous</text>
+      <rect x="220" y="586" width="140" height="40" rx="10" fill="#F2EEF8" />
+      <text x="290" y="611" text-anchor="middle" fill="#4A1259" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700">⇄ Random</text>
+      <rect x="592" y="586" width="120" height="40" rx="10" fill="#EAB308" />
+      <text x="652" y="611" text-anchor="middle" fill="#360B42" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700">Next →</text>
+    </g>
+
+    <!-- Right Column: Progressive Hints & Stats -->
+    <g filter="url(#rebusShadow)">
+      <rect x="772" y="144" width="374" height="532" rx="20" fill="#ffffff" stroke="#E2DCEB" stroke-width="1.5" />
+      <text x="802" y="186" fill="#18181B" font-family="DejaVu Serif, Georgia, serif" font-size="20" font-weight="700">Progressive 4-Tier Hints</text>
+      <text x="802" y="210" fill="#6b5e69" font-family="DejaVu Sans, sans-serif" font-size="12.5">Unlock clues step-by-step without spoiling the answer</text>
+
+      <rect x="802" y="232" width="314" height="68" rx="12" fill="#F2EEF8" stroke="#4A1259" stroke-width="1.5" />
+      <text x="822" y="258" fill="#4A1259" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="700">TIER 1 · WORD STRUCTURE</text>
+      <text x="822" y="282" fill="#18181B" font-family="DejaVu Sans, sans-serif" font-size="13.5" font-weight="600">3 words — Letter lengths: (4, 4, 5)</text>
+
+      <rect x="802" y="314" width="314" height="68" rx="12" fill="#F2EEF8" stroke="#4A1259" stroke-width="1.5" />
+      <text x="822" y="340" fill="#4A1259" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="700">TIER 2 · STARTING LETTERS</text>
+      <text x="822" y="364" fill="#18181B" font-family="DejaVu Sans, sans-serif" font-size="13.5" font-weight="600">Starts with: H... O... H...</text>
+
+      <rect x="802" y="396" width="314" height="68" rx="12" fill="#FAF8FC" stroke="#E2DCEB" stroke-width="1.5" />
+      <text x="822" y="422" fill="#6b5e69" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="700">TIER 3 · EDITORIAL CLUE</text>
+      <text x="822" y="446" fill="#4A1259" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700">💡 Click to reveal clue (-15 pts)</text>
+
+      <rect x="802" y="478" width="314" height="68" rx="12" fill="#FAF8FC" stroke="#E2DCEB" stroke-width="1.5" />
+      <text x="822" y="504" fill="#6b5e69" font-family="DejaVu Sans Mono, monospace" font-size="12" font-weight="700">TIER 4 · VOWEL BLUEPRINT</text>
+      <text x="822" y="528" fill="#4A1259" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="700">💡 Click to reveal pattern (-15 pts)</text>
+
+      <!-- Score & Streak Footer inside Right Card -->
+      <rect x="802" y="568" width="150" height="80" rx="14" fill="#4A1259" />
+      <text x="877" y="602" text-anchor="middle" fill="#EAB308" font-family="DejaVu Sans Mono, monospace" font-size="24" font-weight="700">1,240</text>
+      <text x="877" y="628" text-anchor="middle" fill="#F6F4FA" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="700">TOTAL SCORE</text>
+
+      <rect x="966" y="568" width="150" height="80" rx="14" fill="#FEF9C3" stroke="#EAB308" stroke-width="1.5" />
+      <text x="1041" y="602" text-anchor="middle" fill="#360B42" font-family="DejaVu Sans Mono, monospace" font-size="24" font-weight="700">🔥 12</text>
+      <text x="1041" y="628" text-anchor="middle" fill="#4A1259" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="700">SOLVE STREAK</text>
+    </g>
+  </g>
+</svg>

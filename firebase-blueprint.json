@@ -1,0 +1,168 @@
+{
+  "entities": {
+    "LeaderboardEntry": {
+      "title": "LeaderboardEntry",
+      "description": "Publicly viewable leaderboard score entry across all solo games (crossword, rebus, squared, thematix). Contains no PII.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the player who achieved this score.",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Public player display name (no email or PII).",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "gameId": {
+          "type": "string",
+          "description": "Identifier of the solo game.",
+          "enum": ["crossword", "rebus", "squared", "thematix"]
+        },
+        "puzzleId": {
+          "type": "string",
+          "description": "Identifier of the puzzle or mode.",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "puzzleTitle": {
+          "type": "string",
+          "description": "Human-readable title of the puzzle or game mode.",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "score": {
+          "type": "integer",
+          "description": "Numeric score for ranking on the leaderboard.",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        "metricLabel": {
+          "type": "string",
+          "description": "Formatted primary score label (e.g. '2,850 pts').",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "subMetricLabel": {
+          "type": "string",
+          "description": "Formatted secondary details (e.g. '20x20 · medium · 04:12').",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the record was first created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the record was last updated."
+        }
+      },
+      "required": [
+        "userId",
+        "displayName",
+        "gameId",
+        "puzzleId",
+        "puzzleTitle",
+        "score",
+        "metricLabel",
+        "subMetricLabel",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "SquaredHighScore": {
+      "title": "SquaredHighScore",
+      "description": "Detailed Squared board high score entry, publicly viewable for leaderboards.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "puzzleId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["express-3x3", "daily-4x4", "royal-5x5"]
+        },
+        "score": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100000
+        },
+        "wordsFound": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 500
+        },
+        "totalWords": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 500
+        },
+        "bonusWordsCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 500
+        },
+        "foundFeatured": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "userId",
+        "displayName",
+        "puzzleId",
+        "mode",
+        "score",
+        "wordsFound",
+        "totalWords",
+        "bonusWordsCount",
+        "foundFeatured",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/leaderboard/{entryId}": {
+      "schema": {
+        "$ref": "#/entities/LeaderboardEntry"
+      },
+      "description": "Unified public leaderboards for all solo games (crossword, rebus, squared, thematix). Readable by visitors; writable only by the authenticated owner."
+    },
+    "/highscores/{scoreId}": {
+      "schema": {
+        "$ref": "#/entities/SquaredHighScore"
+      },
+      "description": "Detailed Squared board high scores. Readable by visitors; writable only by the authenticated owner."
+    }
+  }
+}
