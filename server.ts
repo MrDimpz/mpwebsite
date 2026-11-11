@@ -75,6 +75,7 @@ io.on('connection', (socket) => {
 
   socket.on('connect-tiktok', (payload: any) => {
     const rawUsername = typeof payload === 'string' ? payload : payload?.username;
+    const isTestMode = typeof payload === 'object' && Boolean(payload?.isTestMode);
 
     if (tiktokConn) {
       try {
@@ -96,6 +97,22 @@ io.on('connection', (socket) => {
       ? String(rawUsername).trim().substring(1)
       : String(rawUsername).trim();
 
+    if (isTestMode) {
+      currentConnectedUsername = cleanUsername;
+      currentRoomId = 'TEST_SIMULATION_ROOM';
+      socket.emit('tiktok-connected', {
+        username: cleanUsername,
+        roomId: currentRoomId,
+        isTestMode: true,
+      });
+      io.emit('tiktok-status', {
+        connected: true,
+        username: cleanUsername,
+        roomId: currentRoomId,
+      });
+      return;
+    }
+
     try {
       tiktokConn = new TikTokLiveConnection(cleanUsername, {
         processInitialData: false,
@@ -106,18 +123,35 @@ io.on('connection', (socket) => {
         .then((state) => {
           if (tiktokConn !== activeConn) return;
           currentConnectedUsername = cleanUsername;
-          currentRoomId = state.roomId || 'active';
-          socket.emit('tiktok-connected', { username: cleanUsername, roomId: state.roomId });
-          io.emit('tiktok-status', { connected: true, username: cleanUsername, roomId: state.roomId });
+          currentRoomId = state.roomId || 'LIVE';
+          socket.emit('tiktok-connected', { username: cleanUsername, roomId: currentRoomId });
+          io.emit('tiktok-status', {
+            connected: true,
+            username: cleanUsername,
+            roomId: currentRoomId,
+          });
         })
         .catch((err) => {
+          // If the user is not currently broadcasting live on TikTok or TikTok blocks room scraping,
+          // activate the Live Relay / Simulation room so the game connects cleanly and accepts chat/webhook events.
+          console.warn(
+            `[TikTok Live] Direct room scrape for @${cleanUsername} unavailable (${err?.message || 'offline'}); activating Live Relay room.`
+          );
           if (tiktokConn === activeConn) {
             tiktokConn = null;
-            currentConnectedUsername = null;
-            currentRoomId = null;
           }
-          socket.emit('tiktok-error', err?.message || 'Failed to connect to TikTok Live');
-          io.emit('tiktok-status', { connected: false, username: '', roomId: '' });
+          currentConnectedUsername = cleanUsername;
+          currentRoomId = 'LIVE_RELAY';
+          socket.emit('tiktok-connected', {
+            username: cleanUsername,
+            roomId: currentRoomId,
+            relayFallback: true,
+          });
+          io.emit('tiktok-status', {
+            connected: true,
+            username: cleanUsername,
+            roomId: currentRoomId,
+          });
         });
 
       activeConn.on(WebcastEvent.CHAT, (data: any) => {
@@ -131,6 +165,40 @@ io.on('connection', (socket) => {
           uniqueId,
           nickname,
           comment,
+          profilePictureUrl,
+        });
+      });
+
+      activeConn.on(WebcastEvent.LIKE, (data: any) => {
+        const uniqueId = data?.user?.uniqueId || data?.uniqueId || 'viewer';
+        const nickname = data?.user?.nickname || data?.nickname || uniqueId;
+        const likeCount = Number(data?.likeCount) || 1;
+        const totalLikeCount = Number(data?.totalLikeCount) || likeCount;
+        const profilePictureUrl = extractProfilePicture(data);
+        io.emit('like-event', {
+          uniqueId,
+          nickname,
+          likeCount,
+          totalLikeCount,
+          profilePictureUrl,
+        });
+      });
+
+      activeConn.on(WebcastEvent.GIFT, (data: any) => {
+        const uniqueId = data?.user?.uniqueId || data?.uniqueId || 'viewer';
+        const nickname = data?.user?.nickname || data?.nickname || uniqueId;
+        const giftName = data?.giftName || data?.giftDetails?.giftName || 'Gift';
+        const diamondCount = Number(data?.diamondCount || data?.giftDetails?.diamondCount) || 1;
+        const repeatCount = Number(data?.repeatCount) || 1;
+        const repeatEnd = data?.repeatEnd !== false;
+        const profilePictureUrl = extractProfilePicture(data);
+        io.emit('gift-event', {
+          uniqueId,
+          nickname,
+          giftName,
+          diamondCount,
+          repeatCount,
+          repeatEnd,
           profilePictureUrl,
         });
       });
@@ -149,7 +217,18 @@ io.on('connection', (socket) => {
         console.warn('TikTok connection warning:', err?.info || err);
       });
     } catch (err: any) {
-      socket.emit('tiktok-error', err?.message || 'Could not initialize connection');
+      currentConnectedUsername = cleanUsername;
+      currentRoomId = 'LIVE_RELAY';
+      socket.emit('tiktok-connected', {
+        username: cleanUsername,
+        roomId: currentRoomId,
+        relayFallback: true,
+      });
+      io.emit('tiktok-status', {
+        connected: true,
+        username: cleanUsername,
+        roomId: currentRoomId,
+      });
     }
   });
 
@@ -173,7 +252,7 @@ io.on('connection', (socket) => {
   socket.on('gift-event', (data) => io.emit('gift-event', data));
 });
 
-// REST webhook endpoint for external relay tools / OBS scripts
+// REST webhook endpoint for external relay tools / OBS scripts (Tikfinity)
 app.post('/api/tiktok/event', (req, res) => {
   const { comment, nickname, uniqueId, profilePictureUrl } = req.body || {};
   const cleanComment = String(comment || req.body?.word || req.body?.text || '').trim();
@@ -184,10 +263,51 @@ app.post('/api/tiktok/event', (req, res) => {
       comment: cleanComment,
       profilePictureUrl: profilePictureUrl || '',
     });
-    res.json({ ok: true, type: 'chat' });
+    res.json({ ok: true, provider: 'tiktok', type: 'chat' });
     return;
   }
   res.status(400).json({ error: 'Missing chat comment' });
+});
+
+app.post('/api/tikfinity/event', (req, res) => {
+  const body = req.body || {};
+  const comment = String(body.comment || body.message || body.text || '').trim();
+  const nickname = String(body.nickname || body.name || 'Tikfinity Viewer').trim();
+  const uniqueId = String(body.uniqueId || body.username || nickname.toLowerCase().replace(/\s+/g, '_')).trim();
+  const profilePictureUrl = String(body.profilePictureUrl || body.avatar || '').trim();
+
+  if (comment) {
+    io.emit('chat-message', {
+      uniqueId,
+      nickname,
+      comment,
+      profilePictureUrl,
+    });
+    res.json({ ok: true, provider: 'tikfinity', type: 'chat' });
+    return;
+  }
+  res.status(400).json({ error: 'Missing chat message' });
+});
+
+app.post('/api/bettertok/event', (req, res) => {
+  const body = req.body || {};
+  const comment = String(body.message || body.text || body.comment || body.content || '').trim();
+  const userObj = body.user || body.sender || {};
+  const nickname = String(userObj.nickname || userObj.name || body.nickname || 'BetterTok Viewer').trim();
+  const uniqueId = String(userObj.uniqueId || userObj.username || body.uniqueId || nickname.toLowerCase().replace(/\s+/g, '_')).trim();
+  const profilePictureUrl = String(userObj.profilePictureUrl || userObj.avatar || body.profilePictureUrl || '').trim();
+
+  if (comment) {
+    io.emit('chat-message', {
+      uniqueId,
+      nickname,
+      comment,
+      profilePictureUrl,
+    });
+    res.json({ ok: true, provider: 'bettertok', type: 'chat' });
+    return;
+  }
+  res.status(400).json({ error: 'Missing chat message' });
 });
 
 app.get('/api/tiktok/status', (_req, res) => {

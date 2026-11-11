@@ -18,9 +18,12 @@ import { getOrInitTabSessionId } from './utils/session';
 import { Link } from 'react-router';
 import { createNewGameInstance, WiKirecGame } from './server/game';
 import {
+  validateInteractiveStreamerKey,
   getActiveInteractiveStreamerSession,
+  setActiveInteractiveStreamerSession,
   clearActiveInteractiveStreamerSession,
 } from '@/lib/interactive-key-auth';
+import { io, Socket } from 'socket.io-client';
 import type { FinderInfo } from './shared/types';
 import { LoggedInIndicator } from '@/components/logged-in-indicator';
 import './index.css';
@@ -205,6 +208,35 @@ export default function App() {
 
   const [streamerLoginOpen, setStreamerLoginOpen] = useState(false);
 
+  // Inline Streamer Login & Live Connect state for the left-hand Live Connect box
+  const [inlineAuthUser, setInlineAuthUser] = useState('@');
+  const [inlineAuthKey, setInlineAuthKey] = useState('');
+  const [inlineAuthError, setInlineAuthError] = useState<string | null>(null);
+  const [inlineLiveHandle, setInlineLiveHandle] = useState(() =>
+    authorizedStreamer?.username
+      ? authorizedStreamer.username.startsWith('@')
+        ? authorizedStreamer.username
+        : `@${authorizedStreamer.username}`
+      : '@'
+  );
+  const [inlineConnecting, setInlineConnecting] = useState(false);
+
+  useEffect(() => {
+    if (authorizedStreamer?.username) {
+      setInlineLiveHandle(
+        authorizedStreamer.username.startsWith('@')
+          ? authorizedStreamer.username
+          : `@${authorizedStreamer.username}`
+      );
+    }
+  }, [authorizedStreamer?.username]);
+
+  useEffect(() => {
+    if (tiktokStatus.connected || tiktokStatus.lastError) {
+      setInlineConnecting(false);
+    }
+  }, [tiktokStatus.connected, tiktokStatus.lastError]);
+
   const handleOpenTikTokLive = useCallback(() => {
     if (!authorizedStreamer) {
       setStreamerLoginOpen(true);
@@ -235,13 +267,11 @@ export default function App() {
       }).catch(() => {});
     }
 
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(
-        JSON.stringify({
-          type: 'streamer:identify',
-          streamerUsername: null,
-        })
-      );
+    if (socketRef.current) {
+      socketRef.current.emit('disconnect-tiktok', {
+        username: currentStreamer?.username || null,
+        sessionId: getOrInitTabSessionId(),
+      });
     }
 
     if (reason === 'inactivity') {
@@ -251,27 +281,83 @@ export default function App() {
   }, []);
 
   const handleStreamerLoginSuccess = useCallback(
-    (auth: { username: string; key: string; label?: string; sessionId?: string }) => {
+    (
+      auth: { username: string; key: string; label?: string; sessionId?: string },
+      openDrawer = true
+    ) => {
       setAuthorizedStreamer(auth);
       setLogoutNotice(null);
+      setInlineAuthError(null);
+      setInlineAuthKey('');
       lastActivityRef.current = Date.now();
       try {
         sessionStorage.setItem('wkt_streamer_auth', JSON.stringify(auth));
       } catch {}
-      setTiktokDrawerOpen(true);
+      if (openDrawer) {
+        setTiktokDrawerOpen(true);
+      }
 
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        wsRef.current.send(
-          JSON.stringify({
-            type: 'streamer:identify',
-            streamerUsername: auth.username,
-            sessionId: getOrInitTabSessionId(),
-          })
-        );
+      if (socketRef.current) {
+        socketRef.current.emit('register-streamer', {
+          username: auth.username,
+          sessionId: getOrInitTabSessionId(),
+        });
       }
     },
     []
   );
+
+  const handleInlineStreamerAuth = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanUser = inlineAuthUser.trim().replace(/^@+/, '').toLowerCase();
+    const cleanKey = inlineAuthKey.trim();
+    if (!cleanUser) {
+      setInlineAuthError('Enter your TikTok @username');
+      return;
+    }
+    if (!cleanKey) {
+      setInlineAuthError('Enter your LIVE-xxxx-xxxx key');
+      return;
+    }
+    const validation = validateInteractiveStreamerKey(cleanUser, cleanKey);
+    if (!validation.ok) {
+      setInlineAuthError(validation.error || 'Invalid @username or key');
+      return;
+    }
+    setActiveInteractiveStreamerSession(validation.user);
+    handleStreamerLoginSuccess(
+      {
+        username: validation.user.username,
+        key: validation.user.key,
+        label: validation.user.label,
+        sessionId: validation.session.username,
+      },
+      false
+    );
+  };
+
+  const handleInlineConnect = (e: React.FormEvent, isTestMode = false) => {
+    e.preventDefault();
+    const cleaned = inlineLiveHandle.trim().replace(/^@+/, '');
+    if (!cleaned || !socketRef.current) return;
+    setInlineConnecting(true);
+    setTiktokStatus((prev) => ({ ...prev, lastError: null }));
+    socketRef.current.emit('connect-tiktok', {
+      username: cleaned,
+      isTestMode,
+      key: authorizedStreamer?.key,
+      sessionId: getOrInitTabSessionId(),
+    });
+  };
+
+  const handleInlineDisconnect = () => {
+    if (!socketRef.current) return;
+    setInlineConnecting(false);
+    socketRef.current.emit('disconnect-tiktok', {
+      username: authorizedStreamer?.username || inlineLiveHandle.trim().replace(/^@+/, ''),
+      sessionId: getOrInitTabSessionId(),
+    });
+  };
 
   // Automatically log out when window or tab is closed
   useEffect(() => {
@@ -356,7 +442,7 @@ export default function App() {
     };
   }, [authorizedStreamer, handleStreamerLogout]);
 
-  const wsRef = useRef<WebSocket | null>(null);
+  const socketRef = useRef<Socket | null>(null);
   const sessionIdRef = useRef<string>(getOrInitSessionId());
   const modeRef = useRef<GameMode>(mode);
   const displayNameRef = useRef<string>(displayName);
@@ -386,188 +472,245 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-    let isUnmounted = false;
+    const socket = io();
+    socketRef.current = socket;
 
-    function connect() {
-      if (isUnmounted) return;
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.host}/ws`;
-      const ws = new WebSocket(wsUrl);
-      wsRef.current = ws;
+    if (authorizedStreamerRef.current?.username) {
+      socket.emit('register-streamer', {
+        username: authorizedStreamerRef.current.username,
+        sessionId: getOrInitTabSessionId(),
+      });
+    }
 
-      ws.onopen = () => {
-        ws.send(
-          JSON.stringify({
-            type: 'identify',
-            sessionId: sessionIdRef.current,
-            displayName: displayNameRef.current,
-            mode: modeRef.current,
-            streamerUsername: authorizedStreamerRef.current?.username || null,
-          })
-        );
-      };
+    socket.on('tiktok-connected', (payload: { username: string; roomId: string }) => {
+      lastActivityRef.current = Date.now();
+      setTiktokStatus((prev) => ({
+        ...prev,
+        connected: true,
+        username: payload.username,
+        lastError: null,
+      }));
+    });
 
-      ws.onmessage = (event) => {
-        try {
-          const msg = JSON.parse(event.data);
-          if (msg.type === 'init') {
-            if (msg.state && (msg.state.mode === modeRef.current || (!gameState && modeRef.current === 'multiplayer'))) {
-              setGameState(msg.state);
-            }
-            if (msg.tiktokStatus) setTiktokStatus(msg.tiktokStatus);
-            if (Array.isArray(msg.chatHistory)) setChatHistory(msg.chatHistory);
-            if (msg.presence) setPresence(msg.presence);
-          } else if (msg.type === 'game:state') {
-            if (msg.state) {
-              // STRICT ISOLATION: Never apply a game state that belongs to another mode
-              if (msg.state.mode && msg.state.mode !== modeRef.current) {
-                return;
-              }
-              setGameState(msg.state);
-              if (msg.state?.isComplete && !prevCompleteRef.current) {
-                sfx.playRoundWin();
-              }
-              prevCompleteRef.current = !!msg.state?.isComplete;
-            }
-          } else if (msg.type === 'game:countdown') {
-            if (modeRef.current === 'multiplayer' || modeRef.current === 'wikiword-4x4') {
-              setGameState((prev) =>
-                prev ? { ...prev, roundEndCountdownSec: msg.seconds } : prev
-              );
-            }
-          } else if (msg.type === 'guess:result') {
-            lastActivityRef.current = Date.now();
-            const outcome: GuessResult = msg.outcome;
+    socket.on('tiktok-status', (payload: { connected: boolean; username?: string | null }) => {
+      lastActivityRef.current = Date.now();
+      setTiktokStatus((prev) => ({
+        ...prev,
+        connected: Boolean(payload.connected),
+        username: payload.username ?? prev.username,
+      }));
+    });
+
+    socket.on('tiktok-error', (errMsg: string) => {
+      setTiktokStatus((prev) => ({
+        ...prev,
+        connected: false,
+        lastError: errMsg || 'TikTok connection error',
+      }));
+    });
+
+    socket.on('tiktok-disconnected', () => {
+      setTiktokStatus((prev) => ({
+        ...prev,
+        connected: false,
+        username: null,
+      }));
+    });
+
+    socket.on(
+      'chat-message',
+      (data: {
+        uniqueId?: string;
+        nickname?: string;
+        comment?: string;
+        profilePictureUrl?: string;
+      }) => {
+        lastActivityRef.current = Date.now();
+        const rawComment = String(data.comment || '').trim();
+        if (!rawComment) return;
+
+        const viewerUsername = (data.uniqueId || 'viewer').replace(/^@+/, '');
+        const viewerDisplay = data.nickname || viewerUsername || 'Viewer';
+
+        if (rawComment.toLowerCase() === '!hint' && localGameRef.current) {
+          localGameRef.current.requestHint();
+          setGameState(localGameRef.current.getPublicState());
+          sfx.playTileStep(0);
+        }
+
+        // Extract candidate words (3..15 letters) from the chat comment
+        const candidateWords =
+          rawComment
+            .replace(/['’`]/g, '')
+            .toLowerCase()
+            .match(/[a-z]{3,15}/g) || [];
+
+        let bestResult: LiveChatItem['guessResult'] = 'chat';
+        let totalPointsEarned = 0;
+        let matchedWord: string | undefined;
+
+        if (localGameRef.current && candidateWords.length > 0) {
+          const finderInfo: FinderInfo = {
+            displayName: viewerDisplay,
+            platform: 'tiktok',
+            platformUserId: viewerUsername,
+            profileImage: data.profilePictureUrl || null,
+          };
+
+          for (const candidate of candidateWords.slice(0, 5)) {
+            const outcome = localGameRef.current.guess(candidate, finderInfo);
             if (outcome.result === 'correct') {
+              bestResult = 'correct';
+              totalPointsEarned += outcome.points || 0;
+              matchedWord = outcome.word;
               sfx.playWordFound(outcome.tierName, outcome.isTitleWord);
               if (outcome.cells?.length) {
                 setFlashedCells(outcome.cells);
                 setTimeout(() => setFlashedCells([]), 900);
               }
-              triggerWordAnnounce(outcome.finder.displayName, outcome.word, outcome.points);
-            } else if (outcome.result === 'already_found') {
+              triggerWordAnnounce(viewerDisplay, outcome.word, outcome.points);
+            } else if (outcome.result === 'already_found' && bestResult !== 'correct') {
+              bestResult = 'already_found';
               sfx.playAlreadyFound();
               if (outcome.cells?.length) {
                 setFlashedCells(outcome.cells);
                 setTimeout(() => setFlashedCells([]), 600);
               }
-            } else if (outcome.result === 'miss_in_article') {
-              sfx.playMiss(true);
-            } else if (outcome.result === 'incorrect') {
-              sfx.playMiss(false);
+            } else if (
+              outcome.result === 'miss_in_article' &&
+              bestResult !== 'correct' &&
+              bestResult !== 'already_found'
+            ) {
+              bestResult = 'miss_in_article';
             }
-          } else if (msg.type === 'game:word-found') {
-            lastActivityRef.current = Date.now();
-            if (modeRef.current === 'multiplayer' || modeRef.current === 'wikiword-4x4') {
-              const outcome: GuessResult = msg.outcome;
-              sfx.playWordFound(outcome.tierName, outcome.isTitleWord);
-              if (outcome.cells?.length) {
-                setFlashedCells(outcome.cells);
-                setTimeout(() => setFlashedCells([]), 900);
-              }
-              triggerWordAnnounce(
-                outcome.finder.displayName,
-                outcome.word,
-                outcome.points
-              );
-            }
-          } else if (msg.type === 'chat:event' && msg.item) {
-            lastActivityRef.current = Date.now();
-            if (!msg.item.eventType || msg.item.eventType === 'chat') {
-              setChatHistory((prev) => [...prev.slice(-39), msg.item]);
-            }
-          } else if (msg.type === 'chat:history' && Array.isArray(msg.items)) {
-            setChatHistory(msg.items);
-            lastActivityRef.current = Date.now();
-          } else if (msg.type === 'tiktok:status' && msg.status) {
-            setTiktokStatus(msg.status);
-            lastActivityRef.current = Date.now();
-          } else if (msg.type === 'streamer:timeout') {
-            handleStreamerLogout('inactivity');
-          } else if (msg.type === 'presence:update' && msg.presence) {
-            setPresence(msg.presence);
           }
-        } catch {}
-      };
 
-      ws.onclose = () => {
-        if (!isUnmounted) {
-          reconnectTimer = setTimeout(connect, 1500);
+          const updatedState = localGameRef.current.getPublicState();
+          setGameState(updatedState);
+          if (updatedState.isComplete && !prevCompleteRef.current) {
+            sfx.playRoundWin();
+          }
+          prevCompleteRef.current = !!updatedState.isComplete;
         }
-      };
-    }
 
-    connect();
+        setTiktokStatus((prev) => ({
+          ...prev,
+          chatEventsProcessed: prev.chatEventsProcessed + 1,
+          guessesFromChat:
+            candidateWords.length > 0 ? prev.guessesFromChat + 1 : prev.guessesFromChat,
+        }));
+
+        const chatItem: LiveChatItem = {
+          id: `tt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          platform: 'tiktok',
+          username: viewerUsername,
+          displayName: viewerDisplay,
+          profileImage: data.profilePictureUrl || undefined,
+          comment: matchedWord ? matchedWord.toUpperCase() : rawComment,
+          guessResult: bestResult,
+          points: totalPointsEarned > 0 ? totalPointsEarned : undefined,
+          timestamp: Date.now(),
+          eventType: 'chat',
+        };
+        setChatHistory((prev) => [...prev.slice(-39), chatItem]);
+      }
+    );
+
+    socket.on('like-event', (data: { likeCount?: number }) => {
+      lastActivityRef.current = Date.now();
+      const added = Math.max(1, Number(data?.likeCount) || 1);
+      setTiktokStatus((prev) => ({
+        ...prev,
+        chatEventsProcessed: prev.chatEventsProcessed + 1,
+        likesCount: prev.likesCount + added,
+      }));
+    });
+
+    socket.on(
+      'gift-event',
+      (data: { diamondCount?: number; repeatCount?: number; repeatEnd?: boolean }) => {
+        lastActivityRef.current = Date.now();
+        if (data?.repeatEnd === false) return;
+        const diamonds =
+          Math.max(1, Number(data?.diamondCount) || 1) *
+          Math.max(1, Number(data?.repeatCount) || 1);
+        setTiktokStatus((prev) => ({
+          ...prev,
+          chatEventsProcessed: prev.chatEventsProcessed + 1,
+          giftsDiamonds: prev.giftsDiamonds + diamonds,
+        }));
+        if (localGameRef.current) {
+          localGameRef.current.requestHint();
+          setGameState(localGameRef.current.getPublicState());
+          sfx.playTileStep(0);
+        }
+      }
+    );
+
     return () => {
-      isUnmounted = true;
-      if (reconnectTimer) clearTimeout(reconnectTimer);
-      wsRef.current?.close();
+      socket.disconnect();
+      socketRef.current = null;
     };
   }, [triggerWordAnnounce]);
 
-  const switchMode = useCallback((nextMode: GameMode) => {
-    setMode(nextMode);
-    setGuessInput('');
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(
-        JSON.stringify({
-          type: 'mode:switch',
-          mode: nextMode,
-        })
-      );
-    }
-  }, []);
+  const switchMode = useCallback(
+    (nextMode: GameMode) => {
+      setMode(nextMode);
+      setGuessInput('');
+      setDismissedRoundId(null);
+      initLocalGame(nextMode);
+    },
+    [initLocalGame]
+  );
 
-  const submitWordGuess = useCallback((wordRaw: string) => {
-    const strippedPunctuation = String(wordRaw || '')
-      .replace(/['’`]/g, '')
-      .replace(/[^a-zA-Z0-9\s]/g, '')
-      .trim();
-    const parts = strippedPunctuation.split(/\s+/).filter(Boolean);
-    setGuessInput('');
-    if (parts.length !== 1) return;
-    const clean = parts[0].toLowerCase();
-    if (!/^[a-z]{3,15}$/.test(clean)) return;
+  const submitWordGuess = useCallback(
+    (wordRaw: string) => {
+      const strippedPunctuation = String(wordRaw || '')
+        .replace(/['’`]/g, '')
+        .replace(/[^a-zA-Z0-9\s]/g, '')
+        .trim();
+      const parts = strippedPunctuation.split(/\s+/).filter(Boolean);
+      setGuessInput('');
+      if (parts.length !== 1) return;
+      const clean = parts[0].toLowerCase();
+      if (!/^[a-z]{3,15}$/.test(clean)) return;
 
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(
-        JSON.stringify({
-          type: 'guess:submit',
-          word: clean,
-        })
-      );
-    }
-
-    if (localGameRef.current) {
-      const finderInfo: FinderInfo = {
-        displayName: displayNameRef.current,
-        platform: 'web',
-        platformUserId: sessionIdRef.current,
-      };
-      const outcome = localGameRef.current.guess(clean, finderInfo);
-      setGameState(localGameRef.current.getPublicState());
-
-      if (outcome.result === 'correct') {
-        sfx.playWordFound(outcome.tierName, outcome.isTitleWord);
-        if (outcome.cells?.length) {
-          setFlashedCells(outcome.cells);
-          setTimeout(() => setFlashedCells([]), 900);
+      if (localGameRef.current) {
+        const finderInfo: FinderInfo = {
+          displayName: displayNameRef.current,
+          platform: 'web',
+          platformUserId: sessionIdRef.current,
+        };
+        const outcome = localGameRef.current.guess(clean, finderInfo);
+        const nextState = localGameRef.current.getPublicState();
+        setGameState(nextState);
+        if (nextState.isComplete && !prevCompleteRef.current) {
+          sfx.playRoundWin();
         }
-        triggerWordAnnounce(outcome.finder.displayName, outcome.word, outcome.points);
-      } else if (outcome.result === 'already_found') {
-        sfx.playAlreadyFound();
-        if (outcome.cells?.length) {
-          setFlashedCells(outcome.cells);
-          setTimeout(() => setFlashedCells([]), 600);
+        prevCompleteRef.current = !!nextState.isComplete;
+
+        if (outcome.result === 'correct') {
+          sfx.playWordFound(outcome.tierName, outcome.isTitleWord);
+          if (outcome.cells?.length) {
+            setFlashedCells(outcome.cells);
+            setTimeout(() => setFlashedCells([]), 900);
+          }
+          triggerWordAnnounce(outcome.finder.displayName, outcome.word, outcome.points);
+        } else if (outcome.result === 'already_found') {
+          sfx.playAlreadyFound();
+          if (outcome.cells?.length) {
+            setFlashedCells(outcome.cells);
+            setTimeout(() => setFlashedCells([]), 600);
+          }
+        } else if (outcome.result === 'miss_in_article') {
+          sfx.playMiss(true);
+        } else if (outcome.result === 'incorrect') {
+          sfx.playMiss(false);
         }
-      } else if (outcome.result === 'miss_in_article') {
-        sfx.playMiss(true);
-      } else if (outcome.result === 'incorrect') {
-        sfx.playMiss(false);
       }
-    }
-  }, []);
+    },
+    [triggerWordAnnounce]
+  );
 
   const handleComposerSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -576,9 +719,6 @@ export default function App() {
   };
 
   const handleRequestHint = () => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: 'game:hint' }));
-    }
     if (localGameRef.current) {
       localGameRef.current.requestHint();
       setGameState(localGameRef.current.getPublicState());
@@ -586,16 +726,10 @@ export default function App() {
     }
   };
 
-  const handleNewRound = (forceNewArticle = true) => {
+  const handleNewRound = (_forceNewArticle = true) => {
     setDismissedRoundId(null);
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(
-        JSON.stringify({
-          type: 'game:new-round',
-          forceNewArticle,
-        })
-      );
-    }
+    prevCompleteRef.current = false;
+    initLocalGame(modeRef.current);
   };
 
   const handleSaveDisplayName = (e: React.FormEvent) => {
@@ -606,16 +740,6 @@ export default function App() {
     try {
       localStorage.setItem(STORAGE_NAME_KEY, cleaned);
     } catch {}
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(
-        JSON.stringify({
-          type: 'identify',
-          sessionId: sessionIdRef.current,
-          displayName: cleaned,
-          mode,
-        })
-      );
-    }
   };
 
   // Scrambled order for unrevealed title chips (matching wikirectangled.com's renderTitleChips)
@@ -714,29 +838,31 @@ export default function App() {
     };
   }, [gameState?.searchWords]);
 
-  const handleQuickSimChat = async () => {
-    try {
-      const res = await fetch('/api/tiktok/sample-words');
-      const words = await res.json();
-      const pool: string[] = [
-        ...(words.commonWords || []),
-        ...(words.rareWords || []),
-        ...(words.titleWords || []),
-      ];
-      const chosen =
-        pool.length > 0 ? pool[Math.floor(Math.random() * pool.length)] : 'planet';
-      const item: LiveChatItem = {
-        id: `sim-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-        platform: 'tiktok',
-        username: 'live_viewer',
-        displayName: 'Live Viewer',
-        comment: chosen.toUpperCase(),
-        guessResult: 'chat',
-        timestamp: Date.now(),
-        eventType: 'chat',
-      };
-      setChatHistory((prev) => [...prev.slice(-39), item]);
-    } catch {}
+  const handleQuickSimChat = () => {
+    const unrevealed = (gameState?.searchWords || []).filter(
+      (w) => !w.revealed && (w.unmaskedWord || w.word)
+    );
+    const chosenSlot =
+      unrevealed.length > 0
+        ? unrevealed[Math.floor(Math.random() * unrevealed.length)]
+        : null;
+    const chosen = (chosenSlot?.unmaskedWord || chosenSlot?.word || 'planet').toLowerCase();
+    const simViewers = [
+      { uniqueId: 'lexi_wordsmith', nickname: 'Lexi Wordsmith' },
+      { uniqueId: 'boggle_king99', nickname: 'BoggleKing' },
+      { uniqueId: 'wiki_hunter_tt', nickname: 'WikiHunter' },
+      { uniqueId: 'puzzle_champ', nickname: 'PuzzleChamp' },
+    ];
+    const viewer = simViewers[Math.floor(Math.random() * simViewers.length)];
+
+    if (socketRef.current) {
+      socketRef.current.emit('chat-message', {
+        uniqueId: viewer.uniqueId,
+        nickname: viewer.nickname,
+        comment: chosen,
+        profilePictureUrl: '',
+      });
+    }
   };
 
   const chatOnlyItems = useMemo(
@@ -795,114 +921,358 @@ export default function App() {
         </div>
       )}
 
+      {/* Top Account & Navigation Bar */}
+      <div
+        style={{
+          width: '100%',
+          maxWidth: '1220px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '2px 8px 4px',
+          gap: '8px',
+        }}
+      >
+        <Link to="/interactive-games" className="back-games-btn" style={{ textDecoration: 'none', fontSize: '12px', fontWeight: 700, color: 'var(--text-dim)', background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: '8px', padding: '4px 10px' }}>
+          ← Interactive Games
+        </Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <LoggedInIndicator />
+        </div>
+      </div>
+
       <div className="app-stage">
-        {/* LEFT BOX: LIVE CHAT STREAM (Shown once an authorized user logs in, before and during connection) */}
-        {authorizedStreamer && (
-          <aside className="side-box left-chat-box" aria-label="Live Chat Stream">
-            <div className="side-box-header">
-              <div className="side-box-title">
-                <span className={`live-dot ${tiktokStatus.connected ? 'connected' : ''}`} />
-                <span>LIVE CHAT STREAM</span>
-              </div>
+        {/* LEFT BOX: TIKTOK LIVE CONNECT & LIVE CHAT STREAM (Always visible) */}
+        <aside className="side-box left-chat-box" aria-label="TikTok Live Connect & Chat Stream">
+          <div className="side-box-header">
+            <div className="side-box-title">
+              <span className={`live-dot ${tiktokStatus.connected ? 'connected' : ''}`} />
+              <span>TIKTOK LIVE CONNECT</span>
+            </div>
+            {authorizedStreamer ? (
               <button
                 type="button"
                 className="side-box-action"
-                onClick={handleOpenTikTokLive}
+                onClick={() => handleStreamerLogout('manual')}
+                title="Log out of Streamer Key session"
               >
-                {tiktokStatus.connected && tiktokStatus.username
-                  ? `@${tiktokStatus.username}`
-                  : 'Connect Live'}
+                Log out
               </button>
-            </div>
+            ) : (
+              <button
+                type="button"
+                className="side-box-action"
+                onClick={() => setStreamerLoginOpen(true)}
+              >
+                Key Login
+              </button>
+            )}
+          </div>
 
-            <div className="side-box-body chat-stream-list" ref={chatListRef}>
-              {chatOnlyItems.length === 0 ? (
-                <div className="side-box-empty">
-                  <p>
+          {/* LIVE CONNECT SECTION (Inline inside the left box) */}
+          <div
+            style={{
+              padding: '10px 12px',
+              background: 'var(--bg-2)',
+              borderBottom: '1.5px solid var(--border)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+              flexShrink: 0,
+            }}
+          >
+            {!authorizedStreamer ? (
+              <form onSubmit={handleInlineStreamerAuth} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ fontSize: '11px', color: 'var(--text-dim)', lineHeight: 1.35 }}>
+                  Enter your registered TikTok <b style={{ color: 'var(--text)' }}>@username</b> and <b style={{ color: 'var(--accent-orange)' }}>LIVE-xxxx-xxxx</b> key to connect your stream:
+                </div>
+                {inlineAuthError && (
+                  <div
+                    style={{
+                      fontSize: '11px',
+                      color: '#fca5a5',
+                      background: 'rgba(212, 63, 63, 0.15)',
+                      border: '1px solid rgba(212, 63, 63, 0.4)',
+                      borderRadius: '6px',
+                      padding: '4px 8px',
+                    }}
+                  >
+                    {inlineAuthError}
+                  </div>
+                )}
+                <input
+                  type="text"
+                  value={inlineAuthUser}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setInlineAuthUser(v.startsWith('@') ? v : `@${v.replace(/^@+/, '')}`);
+                  }}
+                  placeholder="@username"
+                  style={{
+                    width: '100%',
+                    padding: '6px 9px',
+                    borderRadius: '8px',
+                    background: 'var(--bg)',
+                    border: '1px solid var(--border-soft)',
+                    color: 'var(--text)',
+                    fontSize: '12px',
+                    fontFamily: 'monospace',
+                  }}
+                />
+                <input
+                  type="password"
+                  value={inlineAuthKey}
+                  onChange={(e) => setInlineAuthKey(e.target.value)}
+                  placeholder="LIVE-XXXX-XXXX"
+                  style={{
+                    width: '100%',
+                    padding: '6px 9px',
+                    borderRadius: '8px',
+                    background: 'var(--bg)',
+                    border: '1px solid var(--border-soft)',
+                    color: 'var(--text)',
+                    fontSize: '12px',
+                    fontFamily: 'monospace',
+                  }}
+                />
+                <button
+                  type="submit"
+                  className="side-footer-btn primary"
+                  style={{ width: '100%', padding: '7px 10px' }}
+                >
+                  Unlock Live Connect
+                </button>
+              </form>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px' }}>
+                  <span style={{ color: '#fbbf24', fontWeight: 700, fontFamily: 'monospace' }}>
+                    ✓ @{authorizedStreamer.username}
+                  </span>
+                  <span
+                    style={{
+                      color: tiktokStatus.connected ? 'var(--accent-green)' : 'var(--text-dim)',
+                      fontWeight: 800,
+                      fontSize: '11px',
+                    }}
+                  >
                     {tiktokStatus.connected
-                      ? 'Waiting for live chat & player guesses...'
-                      : 'Streamer ready · Connect Live to start'}
-                  </p>
-                  <span>
-                    {tiktokStatus.connected
-                      ? 'Live chat messages and word guesses from viewers will appear in real-time.'
-                      : `Logged in as @${authorizedStreamer.username}. Open the TikTok Live Hub to connect your live stream.`}
+                      ? `● Connected (@${tiktokStatus.username || authorizedStreamer.username})`
+                      : inlineConnecting
+                      ? 'Connecting...'
+                      : '○ Disconnected'}
                   </span>
                 </div>
-              ) : (
-                chatOnlyItems.map((item) => {
-                  const nameLabel = (item.displayName || item.username || 'Player').replace(/^@/, '');
-                  const initial = nameLabel[0]?.toUpperCase() || '?';
-                  return (
-                    <div
-                      key={item.id}
-                      className={`chat-stream-item ${
-                        item.guessResult === 'correct' ? 'is-correct' : ''
-                      }`}
+
+                <form
+                  onSubmit={(e) => handleInlineConnect(e, false)}
+                  style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}
+                >
+                  <input
+                    type="text"
+                    value={inlineLiveHandle}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setInlineLiveHandle(v.startsWith('@') ? v : `@${v.replace(/^@+/, '')}`);
+                    }}
+                    placeholder="@username (live on TikTok)"
+                    style={{
+                      width: '100%',
+                      padding: '6px 9px',
+                      borderRadius: '8px',
+                      background: 'var(--bg)',
+                      border: '1px solid var(--border-soft)',
+                      color: 'var(--text)',
+                      fontSize: '12px',
+                      fontFamily: 'monospace',
+                    }}
+                  />
+                  {tiktokStatus.connected ? (
+                    <button
+                      type="button"
+                      onClick={handleInlineDisconnect}
+                      style={{
+                        width: '100%',
+                        padding: '6px 10px',
+                        borderRadius: '8px',
+                        background: 'var(--accent-red)',
+                        color: '#fff',
+                        border: 'none',
+                        fontSize: '12px',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                      }}
                     >
-                      <div className="csi-avatar">
-                        {item.profileImage ? (
-                          <img
-                            src={item.profileImage}
-                            alt={nameLabel}
-                            referrerPolicy="no-referrer"
-                            onError={(e) => {
-                              (e.currentTarget as HTMLImageElement).style.display = 'none';
-                            }}
-                          />
+                      Disconnect Stream
+                    </button>
+                  ) : (
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button
+                        type="submit"
+                        disabled={inlineConnecting}
+                        className="side-footer-btn primary"
+                        style={{ flex: 1, padding: '6px 8px' }}
+                      >
+                        {inlineConnecting ? 'Connecting...' : 'Connect Live'}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={inlineConnecting}
+                        onClick={(e) => handleInlineConnect(e as unknown as React.FormEvent, true)}
+                        className="side-footer-btn"
+                        style={{
+                          flex: 1,
+                          padding: '6px 8px',
+                          borderColor: 'rgba(158, 234, 58, 0.5)',
+                          color: 'var(--accent-green)',
+                        }}
+                      >
+                        Test Mode
+                      </button>
+                    </div>
+                  )}
+                </form>
+
+                {tiktokStatus.lastError && (
+                  <div
+                    style={{
+                      fontSize: '11px',
+                      color: '#fca5a5',
+                      background: 'rgba(212, 63, 63, 0.15)',
+                      border: '1px solid rgba(212, 63, 63, 0.4)',
+                      borderRadius: '6px',
+                      padding: '4px 8px',
+                    }}
+                  >
+                    {tiktokStatus.lastError}
+                  </div>
+                )}
+
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(3, 1fr)',
+                    gap: '4px',
+                    textAlign: 'center',
+                    paddingTop: '4px',
+                    borderTop: '1px solid var(--border)',
+                    fontSize: '10px',
+                    color: 'var(--text-dim)',
+                  }}
+                >
+                  <div>
+                    <div style={{ fontWeight: 800, color: 'var(--text)', fontSize: '12px' }}>
+                      {tiktokStatus.guessesFromChat}
+                    </div>
+                    <div>Guesses</div>
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 800, color: 'var(--text)', fontSize: '12px' }}>
+                      {tiktokStatus.likesCount}
+                    </div>
+                    <div>Likes</div>
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 800, color: 'var(--gold)', fontSize: '12px' }}>
+                      {tiktokStatus.giftsDiamonds}
+                    </div>
+                    <div>Gifts</div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="side-box-body chat-stream-list" ref={chatListRef}>
+            {chatOnlyItems.length === 0 ? (
+              <div className="side-box-empty">
+                <p>
+                  {tiktokStatus.connected
+                    ? 'Waiting for live chat & player guesses...'
+                    : authorizedStreamer
+                    ? 'Ready · Click Connect Live or Test Mode above'
+                    : 'Unlock Live Connect above to stream'}
+                </p>
+                <span>
+                  {tiktokStatus.connected
+                    ? 'Live chat messages and word guesses from viewers will appear in real-time.'
+                    : 'Viewer guesses from TikTok Live chat automatically solve words on the board.'}
+                </span>
+              </div>
+            ) : (
+              chatOnlyItems.map((item) => {
+                const nameLabel = (item.displayName || item.username || 'Player').replace(/^@/, '');
+                const initial = nameLabel[0]?.toUpperCase() || '?';
+                return (
+                  <div
+                    key={item.id}
+                    className={`chat-stream-item ${
+                      item.guessResult === 'correct' ? 'is-correct' : ''
+                    }`}
+                  >
+                    <div className="csi-avatar">
+                      <img
+                        src={
+                          item.profileImage && item.profileImage.startsWith('http')
+                            ? item.profileImage
+                            : `https://i.pravatar.cc/150?u=${encodeURIComponent(nameLabel)}`
+                        }
+                        alt={nameLabel}
+                        referrerPolicy="no-referrer"
+                        onError={(e) => {
+                          const target = e.currentTarget;
+                          const fallback = `https://i.pravatar.cc/150?u=${encodeURIComponent(nameLabel)}`;
+                          if (target.src !== fallback) {
+                            target.src = fallback;
+                          }
+                        }}
+                      />
+                    </div>
+                    <div className="csi-content">
+                      <div className="csi-top">
+                        <span className="csi-name">{nameLabel}</span>
+                        {item.points && item.points > 0 ? (
+                          <span className="csi-badge correct">
+                            +{item.points.toLocaleString()}
+                          </span>
+                        ) : item.guessResult === 'already_found' ? (
+                          <span className="csi-badge dup">DUP</span>
+                        ) : item.guessResult === 'miss_in_article' ? (
+                          <span className="csi-badge wiki">WIKI</span>
                         ) : (
-                          initial
+                          <span className="csi-badge miss">CHAT</span>
                         )}
                       </div>
-                      <div className="csi-content">
-                        <div className="csi-top">
-                          <span className="csi-name">{nameLabel}</span>
-                          {item.points && item.points > 0 ? (
-                            <span className="csi-badge correct">
-                              +{item.points.toLocaleString()}
-                            </span>
-                          ) : item.guessResult === 'already_found' ? (
-                            <span className="csi-badge dup">DUP</span>
-                          ) : item.guessResult === 'miss_in_article' ? (
-                            <span className="csi-badge wiki">WIKI</span>
-                          ) : (
-                            <span className="csi-badge miss">CHAT</span>
-                          )}
-                        </div>
-                        <div className="csi-comment">{item.comment}</div>
-                      </div>
+                      <div className="csi-comment">{item.comment}</div>
                     </div>
-                  );
-                })
-              )}
-            </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
 
-            <div className="side-box-footer">
-              <button
-                type="button"
-                className="side-footer-btn"
-                onClick={handleQuickSimChat}
-              >
-                + Sim Guess
-              </button>
-              <button
-                type="button"
-                className="side-footer-btn primary"
-                onClick={handleOpenTikTokLive}
-              >
-                TikTok Live Hub
-              </button>
-            </div>
-          </aside>
-        )}
+          <div className="side-box-footer">
+            <button
+              type="button"
+              className="side-footer-btn"
+              onClick={handleQuickSimChat}
+            >
+              + Sim Guess
+            </button>
+            <button
+              type="button"
+              className="side-footer-btn primary"
+              onClick={handleOpenTikTokLive}
+            >
+              {authorizedStreamer ? 'Live Hub & Key' : 'TikTok Live'}
+            </button>
+          </div>
+        </aside>
 
         {/* CENTER COLUMN: MAIN WIKIRECTANGLED GAME */}
         <div className="game-center-col">
           {/* TOPBAR — Exact wikirectangled.com structure */}
           <header className="topbar">
-            <Link to="/interactive-games" className="back-games-btn" title="Back to Interactive Games">
-              ← Games
-            </Link>
             <a
               href="/"
               onClick={(e) => {
@@ -912,86 +1282,83 @@ export default function App() {
               className="logo-text"
               id="logo"
             >
-          <span>WiKi</span>
-          <span className="accent">rec</span>
-          <span className="green">Tangled</span>
-        </a>
+              <span>WiKi</span>
+              <span className="accent">rec</span>
+              <span className="green">Tangled</span>
+            </a>
 
-        <div className="topbar-spacer" />
+            <div className="topbar-spacer" />
 
-        <div className="counts">
-          <span className="count g" title="Grid words found">
-            <span className="badge">G</span>
-            <b id="grid-found">{gameState?.foundCount || 0}</b>
-          </span>
-          <span
-            className={`count t ${(gameState?.revealedTitleWordCount || 0) > 0 ? 'has-found' : ''}`}
-            title="Title words revealed"
-          >
-            <span className="badge">T</span>
-            <b id="title-found">{gameState?.revealedTitleWordCount || 0}</b>
-            <span className="slash">/</span>
-            <span className="total" id="title-total">
-              {gameState?.titleWordCount || 0}
-            </span>
-          </span>
-          <span className="count c" title="Common words target">
-            <span className="badge">C</span>
-            <b id="common-found">{gameState?.foundCommonCount || 0}</b>
-            <span className="slash">/</span>
-            <span className="total" id="common-total">
-              {gameState?.commonWordTarget || 0}
-            </span>
-          </span>
-        </div>
+            <div className="counts">
+              <span className="count g" title="Grid words found">
+                <span className="badge">G</span>
+                <b id="grid-found">{gameState?.foundCount || 0}</b>
+              </span>
+              <span
+                className={`count t ${(gameState?.revealedTitleWordCount || 0) > 0 ? 'has-found' : ''}`}
+                title="Title words revealed"
+              >
+                <span className="badge">T</span>
+                <b id="title-found">{gameState?.revealedTitleWordCount || 0}</b>
+                <span className="slash">/</span>
+                <span className="total" id="title-total">
+                  {gameState?.titleWordCount || 0}
+                </span>
+              </span>
+              <span className="count c" title="Common words target">
+                <span className="badge">C</span>
+                <b id="common-found">{gameState?.foundCommonCount || 0}</b>
+                <span className="slash">/</span>
+                <span className="total" id="common-total">
+                  {gameState?.commonWordTarget || 0}
+                </span>
+              </span>
+            </div>
 
-        {/* Logged in indicator */}
-        <div className="hidden sm:block">
-          <LoggedInIndicator />
-        </div>
+            {/* Hint button */}
+            <button
+              type="button"
+              onClick={handleRequestHint}
+              className="mute-toggle"
+              title="Reveal a tile hint"
+              aria-label="Reveal Hint"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M9 18h6" />
+                <path d="M10 22h4" />
+                <path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z" />
+              </svg>
+            </button>
 
-        {/* Hint button */}
-        <button
-          type="button"
-          onClick={handleRequestHint}
-          className="mute-toggle"
-          title="Reveal a tile hint"
-          aria-label="Reveal Hint"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M9 18h6" />
-            <path d="M10 22h4" />
-            <path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z" />
-          </svg>
-        </button>
-
-        {/* TikTok Live Chat & Streamer Relay Button */}
-        <button
-          type="button"
-          onClick={handleOpenTikTokLive}
-          className={`tiktok-pill-btn ${tiktokStatus.connected ? 'live' : ''} ${authorizedStreamer ? 'authorized' : ''}`}
-          title={
-            authorizedStreamer
-              ? `Logged in as @${authorizedStreamer.username} · Open TikTok Live Hub`
-              : 'Log in with registered @username and key to open TikTok Live'
-          }
-        >
-          <span>
-            {authorizedStreamer
-              ? `@${authorizedStreamer.username}`
-              : 'TikTok Live'}
-          </span>
-          {tiktokStatus.guessesFromChat > 0 && (
-            <span>({tiktokStatus.guessesFromChat})</span>
-          )}
-        </button>
+            {/* TikTok Live Chat & Streamer Relay Button */}
+            <button
+              type="button"
+              onClick={handleOpenTikTokLive}
+              className={`tiktok-pill-btn ${tiktokStatus.connected ? 'live' : ''} ${authorizedStreamer ? 'authorized' : ''}`}
+              title={
+                authorizedStreamer
+                  ? `Logged in as @${authorizedStreamer.username} · Open TikTok Live Hub`
+                  : 'Log in with registered @username and key to open TikTok Live'
+              }
+            >
+              <span>
+                {tiktokStatus.connected && tiktokStatus.username
+                  ? `● @${tiktokStatus.username}`
+                  : authorizedStreamer
+                  ? `Connect @${authorizedStreamer.username}`
+                  : 'Connect Live'}
+              </span>
+              {tiktokStatus.guessesFromChat > 0 && (
+                <span>({tiktokStatus.guessesFromChat})</span>
+              )}
+            </button>
 
         {/* Sound Mute Toggle */}
         <button
@@ -1099,15 +1466,22 @@ export default function App() {
                 <div key={rankClass} className={`player-card ${rankClass}`}>
                   <div className="pfp">
                     {player ? (
-                      player.profileImage ? (
-                        <img
-                          src={player.profileImage}
-                          alt={cleanPlayerName}
-                          referrerPolicy="no-referrer"
-                        />
-                      ) : (
-                        cleanPlayerName[0]?.toUpperCase() || '?'
-                      )
+                      <img
+                        src={
+                          player.profileImage && player.profileImage.startsWith('http')
+                            ? player.profileImage
+                            : `https://i.pravatar.cc/150?u=${encodeURIComponent(cleanPlayerName)}`
+                        }
+                        alt={cleanPlayerName}
+                        referrerPolicy="no-referrer"
+                        onError={(e) => {
+                          const target = e.currentTarget;
+                          const fallback = `https://i.pravatar.cc/150?u=${encodeURIComponent(cleanPlayerName)}`;
+                          if (target.src !== fallback) {
+                            target.src = fallback;
+                          }
+                        }}
+                      />
                     ) : (
                       i + 1
                     )}
@@ -1166,15 +1540,22 @@ export default function App() {
                     {t.finder && !isPlaceholder && (
                       <div className="tfinder">
                         <div className="tpfp">
-                          {t.finder.profileImage ? (
-                            <img
-                              src={t.finder.profileImage}
-                              alt={finderName}
-                              referrerPolicy="no-referrer"
-                            />
-                          ) : (
-                            finderName[0]?.toUpperCase() || '?'
-                          )}
+                          <img
+                            src={
+                              t.finder.profileImage && t.finder.profileImage.startsWith('http')
+                                ? t.finder.profileImage
+                                : `https://i.pravatar.cc/150?u=${encodeURIComponent(finderName)}`
+                            }
+                            alt={finderName}
+                            referrerPolicy="no-referrer"
+                            onError={(e) => {
+                              const target = e.currentTarget;
+                              const fallback = `https://i.pravatar.cc/150?u=${encodeURIComponent(finderName)}`;
+                              if (target.src !== fallback) {
+                                target.src = fallback;
+                              }
+                            }}
+                          />
                         </div>
                         <div className="tname">{finderName}</div>
                       </div>
@@ -1199,18 +1580,23 @@ export default function App() {
               onMouseLeave={() => setFlashedCells([])}
             >
               <span className="fw-avatar-wrap">
-                {lastGuessEntry.profileImage ? (
-                  <img
-                    src={lastGuessEntry.profileImage}
-                    alt={lastGuessEntry.displayName}
-                    referrerPolicy="no-referrer"
-                    className="fw-fallback"
-                  />
-                ) : (
-                  <div className="fw-fallback">
-                    {(lastGuessEntry.displayName || '?').replace(/^@/, '')[0]?.toUpperCase() || '?'}
-                  </div>
-                )}
+                <img
+                  src={
+                    lastGuessEntry.profileImage && lastGuessEntry.profileImage.startsWith('http')
+                      ? lastGuessEntry.profileImage
+                      : `https://i.pravatar.cc/150?u=${encodeURIComponent(lastGuessEntry.displayName || 'Player')}`
+                  }
+                  alt={lastGuessEntry.displayName}
+                  referrerPolicy="no-referrer"
+                  className="fw-fallback"
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    const fallback = `https://i.pravatar.cc/150?u=${encodeURIComponent(lastGuessEntry.displayName || 'Player')}`;
+                    if (target.src !== fallback) {
+                      target.src = fallback;
+                    }
+                  }}
+                />
               </span>
               <span className="fw-word">{lastGuessEntry.word}</span>
               <span className="fw-finder-wrap">

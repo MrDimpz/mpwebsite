@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Play, RotateCcw, Share2, Award, Check, Radio, Trophy } from 'lucide-react';
+import { Link } from 'react-router';
+import { Play, RotateCcw, Share2, Award, Check, Radio, Trophy, ArrowLeft } from 'lucide-react';
 import { GameModeId, PuzzleBoard } from '../utils/puzzleGenerator';
 import { LeaderboardPlayer } from './TikTokLeaderboardPanel';
 
@@ -28,12 +29,21 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
 
   return (
     <div className="fixed inset-0 z-40 flex flex-col items-center justify-between p-6 sm:p-10 bg-[radial-gradient(circle_at_50%_28%,#4B1276_0%,#24073B_55%,#12031F_100%)] text-[#F5F3F7] overflow-y-auto border-[5px] border-[#D4A437]">
-      {/* Top Quiet Metadata Line + TikTok Connect Trigger */}
+      {/* Top Quiet Metadata Line + Back Link + TikTok Connect Trigger */}
       <div className="w-full max-w-4xl flex items-center justify-between gap-4 text-xs text-[#D6CBE2] font-mono tabular-nums tracking-wide">
-        <div className="flex items-center gap-2">
-          <span>Daily Puzzle #{dailyNumber}</span>
-          <span aria-hidden="true">·</span>
-          <span>{dateLabel}</span>
+        <div className="flex items-center gap-3">
+          <Link
+            to="/interactive-games"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 border border-[#E6BE5A]/40 text-[#F6C915] hover:text-white font-sans font-bold transition-colors"
+            title="Back to Interactive Games"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Interactive Games</span>
+          </Link>
+          <span aria-hidden="true" className="hidden sm:inline">·</span>
+          <span className="hidden sm:inline">Daily Puzzle #{dailyNumber}</span>
+          <span aria-hidden="true" className="hidden md:inline">·</span>
+          <span className="hidden md:inline">{dateLabel}</span>
         </div>
 
         <button
@@ -49,7 +59,7 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
           <span>
             {isLiveConnected && connectedHandle
               ? `LIVE · @${connectedHandle.replace(/^@+/, '')}`
-              : 'Connect'}
+              : 'Streamer Login / Connect'}
           </span>
         </button>
       </div>
@@ -224,6 +234,7 @@ export const PauseOrVictoryModal: React.FC<PauseOrVictoryModalProps> = ({
         wordsFound: foundCount,
         bonusWords: bonusCount,
         featuredFound: foundFeatured,
+        answers: [],
         updatedAt: Date.now(),
       },
     ];
@@ -470,7 +481,7 @@ export const PauseOrVictoryModal: React.FC<PauseOrVictoryModalProps> = ({
           </button>
         </div>
 
-        <div className="text-center pt-1">
+        <div className="flex items-center justify-center gap-4 text-center pt-1">
           <button
             type="button"
             onClick={onReturnTitle}
@@ -478,6 +489,13 @@ export const PauseOrVictoryModal: React.FC<PauseOrVictoryModalProps> = ({
           >
             Return to Title Screen
           </button>
+          <span className="text-[#8E79A6]">·</span>
+          <Link
+            to="/interactive-games"
+            className="text-xs text-[#F6C915] hover:text-white underline font-semibold"
+          >
+            ← Back to Interactive Games
+          </Link>
         </div>
       </div>
     </div>

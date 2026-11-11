@@ -1220,8 +1220,15 @@ a {
 }
 
 @media (max-width: 960px) {
+  .app-stage {
+    flex-direction: column;
+    align-items: center;
+    max-height: none;
+    gap: 16px;
+  }
   .side-box {
-    display: none;
+    width: var(--app-width);
+    max-height: 360px;
   }
 }
 

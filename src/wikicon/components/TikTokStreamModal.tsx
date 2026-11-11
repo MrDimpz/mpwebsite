@@ -24,7 +24,7 @@ interface TikTokStreamModalProps {
   connectedUsername: string | null;
   connectedRoomId: string | null;
   errorMessage: string | null;
-  onConnectTikTok: (username: string) => void;
+  onConnectTikTok: (username: string, isTestMode?: boolean) => void;
   onDisconnectTikTok: () => void;
   // Simulate / Debug passthrough triggers via Socket.IO
   onSimulateChat: (data: {
@@ -123,9 +123,9 @@ export const TikTokStreamModal: React.FC<TikTokStreamModalProps> = ({
     }
   };
 
-  const handleConnectSubmit = (e: React.FormEvent) => {
+  const handleConnectSubmit = (e: React.FormEvent, isTestMode = false) => {
     e.preventDefault();
-    onConnectTikTok(liveHandleInput);
+    onConnectTikTok(liveHandleInput, isTestMode);
   };
 
   const handleFakeChatSubmit = (e: React.FormEvent) => {
@@ -294,13 +294,13 @@ export const TikTokStreamModal: React.FC<TikTokStreamModalProps> = ({
                   </div>
                 )}
 
-                <form onSubmit={handleConnectSubmit} className="flex gap-2">
+                <form onSubmit={(e) => handleConnectSubmit(e, false)} className="flex flex-wrap gap-2">
                   <input
                     type="text"
                     value={liveHandleInput}
                     onChange={(e) => setLiveHandleInput(ensureLeadingAt(e.target.value))}
                     placeholder="@username"
-                    className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-[#020a25] border border-[#1768b3] text-sm text-white focus:outline-none focus:border-[#19e4ff]"
+                    className="flex-1 min-w-[150px] px-3 py-2 rounded-xl bg-[#020a25] border border-[#1768b3] text-sm text-white focus:outline-none focus:border-[#19e4ff]"
                   />
                   {connectionState === 'connected' ? (
                     <button
@@ -311,13 +311,23 @@ export const TikTokStreamModal: React.FC<TikTokStreamModalProps> = ({
                       Disconnect
                     </button>
                   ) : (
-                    <button
-                      type="submit"
-                      disabled={connectionState === 'connecting'}
-                      className="px-4 py-2 rounded-xl bg-[#19e4ff] hover:bg-[#5cecff] text-[#020a25] text-xs font-extrabold cursor-pointer whitespace-nowrap"
-                    >
-                      {connectionState === 'connecting' ? 'Connecting...' : 'Connect'}
-                    </button>
+                    <>
+                      <button
+                        type="submit"
+                        disabled={connectionState === 'connecting'}
+                        className="px-4 py-2 rounded-xl bg-[#19e4ff] hover:bg-[#5cecff] text-[#020a25] text-xs font-extrabold cursor-pointer whitespace-nowrap"
+                      >
+                        {connectionState === 'connecting' ? 'Connecting...' : 'Connect Live'}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={connectionState === 'connecting'}
+                        onClick={(e) => handleConnectSubmit(e as unknown as React.FormEvent, true)}
+                        className="px-3.5 py-2 rounded-xl bg-[#2bff86]/20 hover:bg-[#2bff86]/30 border border-[#2bff86]/60 text-[#2bff86] text-xs font-extrabold cursor-pointer whitespace-nowrap"
+                      >
+                        Start Test Mode
+                      </button>
+                    </>
                   )}
                 </form>
 

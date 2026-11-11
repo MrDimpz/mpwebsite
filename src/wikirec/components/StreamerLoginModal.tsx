@@ -26,6 +26,22 @@ export const StreamerLoginModal: React.FC<StreamerLoginModalProps> = ({
   const [showKey, setShowKey] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [chatProvider, setChatProvider] = useState<'tikfinity' | 'bettertok'>(() => {
+    try {
+      const saved = localStorage.getItem('chat_integration_provider');
+      if (saved === 'bettertok' || saved === 'tikfinity') {
+        return saved;
+      }
+    } catch {}
+    return 'tikfinity';
+  });
+
+  const handleProviderChange = (provider: 'tikfinity' | 'bettertok') => {
+    setChatProvider(provider);
+    try {
+      localStorage.setItem('chat_integration_provider', provider);
+    } catch {}
+  };
 
   // Autofill @ and reset key and error message whenever the login window opens
   React.useEffect(() => {
@@ -206,6 +222,40 @@ export const StreamerLoginModal: React.FC<StreamerLoginModalProps> = ({
             </div>
             <p className="text-[10px] text-slate-500 mt-1">
               Your secret key issued by the game administrator
+            </p>
+          </div>
+
+          {/* Chat Integration Provider Configuration Panel */}
+          <div className="pt-1 space-y-2">
+            <label className="block text-xs font-semibold text-slate-300">
+              Chat Integration Provider
+            </label>
+            <div className="flex items-center gap-1 p-1 bg-[#0d141c] rounded-xl border border-slate-700/80">
+              <button
+                type="button"
+                onClick={() => handleProviderChange('tikfinity')}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  chatProvider === 'tikfinity'
+                    ? 'bg-orange-500 text-white shadow-md'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Tikfinity
+              </button>
+              <button
+                type="button"
+                onClick={() => handleProviderChange('bettertok')}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  chatProvider === 'bettertok'
+                    ? 'bg-orange-500 text-white shadow-md'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                BetterTok
+              </button>
+            </div>
+            <p className="text-[10px] text-slate-500 font-mono truncate">
+              Webhook: {typeof window !== 'undefined' ? window.location.origin : ''}/api/{chatProvider}/event
             </p>
           </div>
 

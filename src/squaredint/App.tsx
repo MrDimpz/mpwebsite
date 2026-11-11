@@ -21,7 +21,9 @@ import {
   Moon,
   Trophy,
   Radio,
+  ArrowLeft,
 } from 'lucide-react';
+import { Link } from 'react-router';
 import {
   GameModeId,
   PuzzleBoard,
@@ -42,10 +44,16 @@ import { DateCalendarDropdown } from './components/DateCalendarDropdown';
 import { TikTokConnectModal } from './components/TikTokConnectModal';
 import { AuthHighScoresModal } from './components/AuthHighScoresModal';
 import { LoggedInIndicator } from '@/components/logged-in-indicator';
+import { AdminPortalModal } from '@/components/interactive-games/admin-portal-modal';
+import {
+  getActiveInteractiveStreamerSession,
+  ActiveInteractiveStreamerSession,
+} from '@/lib/interactive-key-auth';
 import {
   TikTokLeaderboardPanel,
   LeaderboardPlayer,
   LiveFeedItem,
+  GameAnswerItem,
 } from './components/TikTokLeaderboardPanel';
 import {
   auth,
@@ -54,7 +62,7 @@ import {
   HighScoreRecord,
   subscribeToUserHighScores,
   saveHighScoreToFirestore,
-} from './utils/firebase';
+} from '@/squared/utils/firebase';
 import { io, Socket } from 'socket.io-client';
 
 type GameState = 'TITLE_MENU' | 'PLAYING' | 'PAUSED' | 'VICTORY';
@@ -101,9 +109,14 @@ export default function App() {
   const [tiktokError, setTiktokError] = useState<string | null>(null);
   const [roomId, setRoomId] = useState<string>('');
   const [leaderboard, setLeaderboard] = useState<LeaderboardPlayer[]>([]);
+  const [gameAnswers, setGameAnswers] = useState<GameAnswerItem[]>([]);
   const [liveFeed, setLiveFeed] = useState<LiveFeedItem[]>([]);
   const [isSimulatorOpen, setIsSimulatorOpen] = useState<boolean>(false);
   const [isConnectModalOpen, setIsConnectModalOpen] = useState<boolean>(false);
+  const [isAdminPortalOpen, setIsAdminPortalOpen] = useState<boolean>(false);
+  const [authorizedStreamer, setAuthorizedStreamer] =
+    useState<ActiveInteractiveStreamerSession | null>(() => null);
+
   // Firebase Authentication & High Scores State
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [highScores, setHighScores] = useState<HighScoreRecord[]>([]);
@@ -477,8 +490,21 @@ export default function App() {
             }
 
             // Update player on leaderboard (nickname only, never @name)
+            const gameAnswerItem: GameAnswerItem = {
+              id: `${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+              uniqueId,
+              nickname: cleanNick,
+              profilePictureUrl: pfp,
+              word: candidate,
+              points: entry.points,
+              timestamp: Date.now(),
+              isBonus: false,
+            };
+            setGameAnswers((prev) => [gameAnswerItem, ...prev].slice(0, 50));
+
             setLeaderboard((prev) => {
               const existingIdx = prev.findIndex((p) => p.id === uniqueId);
+              const newAnswer = { word: candidate, points: entry.points, timestamp: Date.now() };
               let updated: LeaderboardPlayer[];
               if (existingIdx >= 0) {
                 const ex = prev[existingIdx];
@@ -491,6 +517,7 @@ export default function App() {
                   featuredFound: ex.featuredFound || Boolean(entry.isFeatured),
                   lastWord: candidate,
                   lastWordPoints: entry.points,
+                  answers: [newAnswer, ...(ex.answers || [])].slice(0, 10),
                   updatedAt: Date.now(),
                 };
                 updated = [...prev];
@@ -506,6 +533,7 @@ export default function App() {
                   featuredFound: Boolean(entry.isFeatured),
                   lastWord: candidate,
                   lastWordPoints: entry.points,
+                  answers: [newAnswer],
                   updatedAt: Date.now(),
                 };
                 updated = [newPlayer, ...prev];
@@ -537,8 +565,21 @@ export default function App() {
                   pfp
                 );
 
+                const gameAnswerItem: GameAnswerItem = {
+                  id: `${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+                  uniqueId,
+                  nickname: cleanNick,
+                  profilePictureUrl: pfp,
+                  word: candidate,
+                  points: bonusPts,
+                  timestamp: Date.now(),
+                  isBonus: true,
+                };
+                setGameAnswers((prev) => [gameAnswerItem, ...prev].slice(0, 50));
+
                 setLeaderboard((prev) => {
                   const existingIdx = prev.findIndex((p) => p.id === uniqueId);
+                  const newAnswer = { word: candidate, points: bonusPts, timestamp: Date.now(), isBonus: true };
                   let updated: LeaderboardPlayer[];
                   if (existingIdx >= 0) {
                     const ex = prev[existingIdx];
@@ -550,6 +591,7 @@ export default function App() {
                       bonusWords: ex.bonusWords + 1,
                       lastWord: candidate,
                       lastWordPoints: bonusPts,
+                      answers: [newAnswer, ...(ex.answers || [])].slice(0, 10),
                       updatedAt: Date.now(),
                     };
                     updated = [...prev];
@@ -565,6 +607,7 @@ export default function App() {
                       featuredFound: false,
                       lastWord: candidate,
                       lastWordPoints: bonusPts,
+                      answers: [newAnswer],
                       updatedAt: Date.now(),
                     };
                     updated = [newPlayer, ...prev];
@@ -662,13 +705,14 @@ export default function App() {
       if (isTestMode) {
         setIsLiveConnected(true);
         setRoomId('TEST_SIMULATION_ROOM');
+        socket?.emit('connect-tiktok', { username: clean, isTestMode: true });
         showToast(
           `Test Mode Active: Connected as @${clean}`,
           'gold',
           'Leaderboard & Chat Feed active for manual testing!'
         );
       } else {
-        socket?.emit('connect-tiktok', clean);
+        socket?.emit('connect-tiktok', { username: clean, isTestMode: false });
         showToast(`Connecting @${clean} to TikTok LIVE...`, 'neutral');
       }
 
@@ -689,6 +733,7 @@ export default function App() {
 
   const handleResetLeaderboard = useCallback(() => {
     setLeaderboard([]);
+    setGameAnswers([]);
     setLiveFeed([]);
     showToast('Leaderboard scores reset', 'neutral');
   }, [showToast]);
@@ -975,6 +1020,27 @@ export default function App() {
         onOpenSimulator={() => setIsSimulatorOpen(true)}
         onSimulateChat={handleSimulateChat}
         sampleUnfoundWord={sampleUnfoundWord}
+        authorizedStreamer={authorizedStreamer}
+        onStreamerAuthenticated={(session) => {
+          setAuthorizedStreamer(session);
+          setTiktokUsername(session.username);
+          showToast(
+            `Authorized as ${session.displayHandle}`,
+            'emerald',
+            'You can now connect your live stream or start Test Mode!'
+          );
+        }}
+        onStreamerLogout={() => {
+          setAuthorizedStreamer(null);
+          showToast('Logged out of streamer session', 'neutral');
+        }}
+        onOpenAdminPortal={() => setIsAdminPortalOpen(true)}
+      />
+
+      {/* Interactive Admin Key Portal Modal */}
+      <AdminPortalModal
+        open={isAdminPortalOpen}
+        onClose={() => setIsAdminPortalOpen(false)}
       />
 
       {/* Firebase Account & High Scores Modal */}
@@ -990,8 +1056,17 @@ export default function App() {
       {/* Perimeter Game HUD Header */}
       <header className="shrink-0 flex flex-col px-3 sm:px-6 py-2 bg-[#170428]/90 border-b border-[#E6BE5A]/20">
         <div className="flex items-center justify-between gap-2 sm:gap-3">
-          {/* Left: Emblem + Title + Calendar Date Dropdown */}
+          {/* Left: Back to Interactive Games + Emblem + Title + Calendar Date Dropdown */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            <Link
+              to="/interactive-games"
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 border border-[#E6BE5A]/40 text-xs font-bold text-[#F6C915] hover:text-white transition-colors shrink-0"
+              title="Back to Interactive Games"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Games</span>
+            </Link>
+
             <button
               type="button"
               onClick={() => setGameState('TITLE_MENU')}
@@ -1101,7 +1176,9 @@ export default function App() {
               <span>
                 {isLiveConnected
                   ? `LIVE · @${tiktokUsername.replace(/^@+/, '')}`
-                  : 'Connect'}
+                  : authorizedStreamer
+                    ? `Connect (${authorizedStreamer.displayHandle})`
+                    : 'Connect'}
               </span>
             </button>
 
@@ -1427,6 +1504,7 @@ export default function App() {
               tiktokUsername={tiktokUsername}
               isConnected={isLiveConnected}
               leaderboard={leaderboard}
+              gameAnswers={gameAnswers}
               liveFeed={liveFeed}
               foundWordsCount={foundWords.size}
               totalRequiredWords={requiredWords.size}

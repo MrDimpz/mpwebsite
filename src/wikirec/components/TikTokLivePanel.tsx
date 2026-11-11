@@ -88,7 +88,13 @@ export const TikTokLivePanel: React.FC<TikTokLivePanelProps> = ({
   authorizedStreamer,
   onLogoutStreamer,
 }) => {
-  const [username, setUsername] = useState(() => authorizedStreamer?.username || '');
+  const [username, setUsername] = useState(() =>
+    authorizedStreamer?.username
+      ? authorizedStreamer.username.startsWith('@')
+        ? authorizedStreamer.username
+        : `@${authorizedStreamer.username}`
+      : '@'
+  );
   const [connState, setConnState] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>(
     status.connected ? 'connected' : 'disconnected'
   );
@@ -98,10 +104,30 @@ export const TikTokLivePanel: React.FC<TikTokLivePanelProps> = ({
       : null
   );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [chatProvider, setChatProvider] = useState<'tikfinity' | 'bettertok'>(() => {
+    try {
+      const saved = localStorage.getItem('chat_integration_provider');
+      if (saved === 'bettertok' || saved === 'tikfinity') {
+        return saved;
+      }
+    } catch {}
+    return 'tikfinity';
+  });
+
+  const handleProviderChange = (provider: 'tikfinity' | 'bettertok') => {
+    setChatProvider(provider);
+    try {
+      localStorage.setItem('chat_integration_provider', provider);
+    } catch {}
+  };
 
   useEffect(() => {
     if (authorizedStreamer?.username) {
-      setUsername(authorizedStreamer.username);
+      setUsername(
+        authorizedStreamer.username.startsWith('@')
+          ? authorizedStreamer.username
+          : `@${authorizedStreamer.username}`
+      );
     }
   }, [authorizedStreamer?.username]);
 
@@ -148,6 +174,23 @@ export const TikTokLivePanel: React.FC<TikTokLivePanelProps> = ({
       setConnectedInfo(payload);
       setErrorMessage(null);
       onConnChangeRef.current?.(true, payload.username);
+    });
+
+    socket.on('tiktok-status', (payload: { connected: boolean; username?: string | null; isTestMode?: boolean }) => {
+      if (payload.connected) {
+        setConnState('connected');
+        const uname = payload.username || username.replace(/^@+/, '') || 'streamer';
+        setConnectedInfo((prev) => ({
+          username: uname,
+          roomId: prev?.roomId || (payload.isTestMode ? 'TEST_MODE' : 'LIVE'),
+        }));
+        setErrorMessage(null);
+        onConnChangeRef.current?.(true, uname);
+      } else {
+        setConnState('disconnected');
+        setConnectedInfo(null);
+        onConnChangeRef.current?.(false, null);
+      }
     });
 
     socket.on('tiktok-error', (errMsg: string) => {
@@ -231,13 +274,15 @@ export const TikTokLivePanel: React.FC<TikTokLivePanelProps> = ({
     }
   }, [authorizedStreamer?.username]);
 
-  const handleConnect = (e: React.FormEvent) => {
+  const handleConnect = (e: React.FormEvent, isTestMode = false) => {
     e.preventDefault();
-    if (!username.trim() || !socketRef.current) return;
+    const cleaned = username.trim().replace(/^@+/, '');
+    if (!cleaned || !socketRef.current) return;
     setConnState('connecting');
     setErrorMessage(null);
     socketRef.current.emit('connect-tiktok', {
-      username: username.trim(),
+      username: cleaned,
+      isTestMode,
       key: authorizedStreamer?.key,
       sessionId: getOrInitTabSessionId(),
     });
@@ -246,7 +291,7 @@ export const TikTokLivePanel: React.FC<TikTokLivePanelProps> = ({
   const handleDisconnect = () => {
     if (!socketRef.current) return;
     socketRef.current.emit('disconnect-tiktok', {
-      username: authorizedStreamer?.username || username.trim(),
+      username: authorizedStreamer?.username || username.trim().replace(/^@+/, ''),
       sessionId: getOrInitTabSessionId(),
     });
   };
@@ -279,31 +324,26 @@ export const TikTokLivePanel: React.FC<TikTokLivePanelProps> = ({
     setSimComment('');
   };
 
-  const handleSimulateSmartWordGuess = async (tierType: 'title' | 'common' | 'rare') => {
+  const handleSimulateSmartWordGuess = (tierType: 'title' | 'common' | 'rare') => {
     if (!socketRef.current) return;
-    try {
-      const res = await fetch('/api/tiktok/sample-words');
-      const words = await res.json();
-      const pool: string[] =
-        tierType === 'title'
-          ? words.titleWords
-          : tierType === 'rare'
-          ? words.rareWords
-          : words.commonWords;
-      const chosen =
-        pool && pool.length > 0
-          ? pool[Math.floor(Math.random() * pool.length)]
-          : 'planet';
-      const viewer =
-        SAMPLE_TIKTOK_VIEWERS[Math.floor(Math.random() * SAMPLE_TIKTOK_VIEWERS.length)];
-      socketRef.current.emit('chat-message', {
-        uniqueId: viewer.uniqueId,
-        nickname: viewer.nickname,
-        comment: chosen,
-        profilePictureUrl: viewer.profilePictureUrl,
-        streamerUsername: authorizedStreamer?.username || username.trim(),
-      });
-    } catch {}
+    const allSlots = gameState?.searchWords || [];
+    const tierSlots = allSlots.filter(
+      (s) => s.tier === tierType && !s.revealed && (s.unmaskedWord || s.word)
+    );
+    const fallbackSlots = allSlots.filter((s) => !s.revealed && (s.unmaskedWord || s.word));
+    const pool = tierSlots.length > 0 ? tierSlots : fallbackSlots;
+    const chosenSlot =
+      pool.length > 0 ? pool[Math.floor(Math.random() * pool.length)] : null;
+    const chosen = (chosenSlot?.unmaskedWord || chosenSlot?.word || 'planet').toLowerCase();
+    const viewer =
+      SAMPLE_TIKTOK_VIEWERS[Math.floor(Math.random() * SAMPLE_TIKTOK_VIEWERS.length)];
+    socketRef.current.emit('chat-message', {
+      uniqueId: viewer.uniqueId,
+      nickname: viewer.nickname,
+      comment: chosen,
+      profilePictureUrl: viewer.profilePictureUrl,
+      streamerUsername: authorizedStreamer?.username || username.trim().replace(/^@+/, ''),
+    });
   };
 
   const handleSimulateLike = () => {
@@ -498,40 +538,91 @@ export const TikTokLivePanel: React.FC<TikTokLivePanelProps> = ({
                 </div>
               )}
             </div>
-            <form onSubmit={handleConnect} className="flex gap-2">
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="@username (live on TikTok)"
-                className="flex-1 px-3 py-2 text-sm rounded-lg bg-[#151F32] border border-slate-700 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400"
-              />
-              {connState === 'connected' ? (
-                <button
-                  type="button"
-                  onClick={handleDisconnect}
-                  className="px-4 py-2 text-xs font-semibold rounded-lg bg-rose-500 text-white hover:bg-rose-400 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
-                >
-                  Disconnect
-                </button>
-              ) : (
-                <button
-                  type="submit"
-                  disabled={connState === 'connecting'}
-                  className="px-4 py-2 text-xs font-semibold rounded-lg bg-amber-500 text-slate-950 hover:bg-amber-400 disabled:opacity-50 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
-                >
-                  {connState === 'connecting' ? 'Connecting...' : 'Connect'}
-                </button>
-              )}
-              {connState !== 'connected' && (
-                <button
-                  type="button"
-                  onClick={handleDisconnect}
-                  className="px-3 py-2 text-xs font-medium rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
-                >
-                  Disconnect
-                </button>
-              )}
+            <form onSubmit={(e) => handleConnect(e, false)} className="space-y-3">
+              <div className="flex flex-wrap gap-2">
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setUsername(val.startsWith('@') ? val : `@${val.replace(/^@+/, '')}`);
+                  }}
+                  placeholder="@username (live on TikTok)"
+                  className="flex-1 min-w-[160px] px-3 py-2 text-sm rounded-lg bg-[#151F32] border border-slate-700 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400"
+                />
+                {connState === 'connected' ? (
+                  <button
+                    type="button"
+                    onClick={handleDisconnect}
+                    className="px-4 py-2 text-xs font-semibold rounded-lg bg-rose-500 text-white hover:bg-rose-400 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                  >
+                    Disconnect
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      type="submit"
+                      disabled={connState === 'connecting'}
+                      className="px-4 py-2 text-xs font-semibold rounded-lg bg-amber-500 text-slate-950 hover:bg-amber-400 disabled:opacity-50 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                    >
+                      {connState === 'connecting' ? 'Connecting...' : `Connect (${chatProvider === 'tikfinity' ? 'Tikfinity' : 'BetterTok'})`}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={connState === 'connecting'}
+                      onClick={(e) => handleConnect(e as unknown as React.FormEvent, true)}
+                      className="px-3 py-2 text-xs font-semibold rounded-lg bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 hover:bg-emerald-500/30 disabled:opacity-50 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                    >
+                      Start Test Mode
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {/* Toggle Button between Tikfinity input or BetterTok input */}
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-semibold text-slate-300">Chat Input Provider</span>
+                  <div className="flex items-center gap-1 p-0.5 bg-black/40 rounded-lg border border-slate-700">
+                    <button
+                      type="button"
+                      onClick={() => handleProviderChange('tikfinity')}
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors cursor-pointer ${
+                        chatProvider === 'tikfinity'
+                          ? 'bg-amber-500 text-slate-950'
+                          : 'text-slate-300 hover:text-white'
+                      }`}
+                    >
+                      Tikfinity
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleProviderChange('bettertok')}
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors cursor-pointer ${
+                        chatProvider === 'bettertok'
+                          ? 'bg-amber-500 text-slate-950'
+                          : 'text-slate-300 hover:text-white'
+                      }`}
+                    >
+                      BetterTok
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-xl bg-black/40 border border-slate-800 text-[11px] font-mono text-slate-300 space-y-1">
+                  <div className="text-amber-400 font-bold">
+                    {chatProvider === 'tikfinity' ? 'Tikfinity Webhook URL:' : 'BetterTok Webhook URL:'}
+                  </div>
+                  <div className="bg-black/60 p-2 rounded border border-slate-800 text-white select-all break-all">
+                    {window.location.origin}/api/{chatProvider === 'tikfinity' ? 'tikfinity' : 'bettertok'}/event
+                  </div>
+                  <div className="text-[10px] text-slate-400 pt-1">
+                    {chatProvider === 'tikfinity'
+                      ? 'Configure Tikfinity webhook to POST JSON events to this endpoint.'
+                      : 'Configure BetterTok webhook to POST JSON events (supporting message & user object) to this endpoint.'}
+                  </div>
+                </div>
+              </div>
             </form>
 
             {connState === 'error' && errorMessage && (

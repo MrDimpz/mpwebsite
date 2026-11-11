@@ -4,6 +4,7 @@ import { Link } from 'react-router';
 import {
   createNewWikiconRound,
   handleWikiconGuess,
+  evaluateTikTokChatIntoWikiconRound,
   revealWikiconHint,
   revealEntireWikiconRound,
   getArchiveList,
@@ -350,6 +351,23 @@ export function App() {
       showToast(`Connected to TikTok Live @${data.username}`, 'green');
     });
 
+    socket.on(
+      'tiktok-status',
+      (data: { connected: boolean; username?: string | null; isTestMode?: boolean }) => {
+        recordActivity();
+        if (data.connected) {
+          setTiktokConnState('connected');
+          if (data.username) setConnectedUsername(data.username);
+          setConnectedRoomId((prev) => prev || (data.isTestMode ? 'TEST_MODE' : 'LIVE'));
+          setTiktokError(null);
+        } else {
+          setTiktokConnState('disconnected');
+          setConnectedUsername(null);
+          setConnectedRoomId(null);
+        }
+      }
+    );
+
     socket.on('tiktok-error', (errMsg: string) => {
       setTiktokConnState('error');
       setTiktokError(errMsg || 'TikTok connection error');
@@ -370,16 +388,56 @@ export function App() {
         profilePictureUrl?: string;
       }) => {
         recordActivity();
+        const rawComment = String(data.comment || '');
         const msg: TikTokChatMessage = {
           id: `chat_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
           uniqueId: data.uniqueId || 'viewer',
           nickname: data.nickname || data.uniqueId || 'Viewer',
-          comment: String(data.comment || ''),
+          comment: rawComment,
           profilePictureUrl: data.profilePictureUrl || '',
           timestamp: Date.now(),
         };
         // Append all chat messages (even if not part of puzzle, multi-word, or numbers)
         setChatMessages((prev) => [...prev.slice(-199), msg]);
+
+        // Evaluate chat message words against the active WikiContexto round
+        if (internalRoundRef.current && rawComment.trim()) {
+          if (rawComment.trim().toLowerCase() === '!hint') {
+            const hintWord = revealWikiconHint(internalRoundRef.current);
+            if (hintWord) {
+              soundFX.playWordHit('UNCOMMON');
+              setRound(serializeWikiconRound(internalRoundRef.current));
+              showToast(
+                `@${msg.uniqueId} triggered !hint → "${hintWord.toUpperCase()}"`,
+                'gold'
+              );
+            }
+            return;
+          }
+
+          const prevAnnouncementId = internalRoundRef.current.lastAnnouncement?.id;
+          const anyUpdated = evaluateTikTokChatIntoWikiconRound(internalRoundRef.current, {
+            uniqueId: msg.uniqueId,
+            nickname: msg.nickname,
+            comment: rawComment,
+            profilePictureUrl: msg.profilePictureUrl,
+          });
+
+          if (anyUpdated) {
+            const nextRound = serializeWikiconRound(internalRoundRef.current);
+            setRound(nextRound);
+            const ann = internalRoundRef.current.lastAnnouncement;
+            if (ann && ann.id !== prevAnnouncementId) {
+              soundFX.playWordHit(ann.rarity);
+              showToast(
+                `@${msg.uniqueId} uncovered "${ann.word}" (#${ann.rank} · +${ann.pointsEarned.toLocaleString()} pts)`,
+                ann.rarity === 'TITLE' ? 'gold' : 'green'
+              );
+            } else {
+              soundFX.playKeycapTap(3);
+            }
+          }
+        }
       }
     );
 
@@ -393,10 +451,22 @@ export function App() {
       if (data.repeatEnd === false) return;
       const count = Number(data.repeatCount) || 1;
       setTotalGiftsCount((prev) => prev + count);
-      showToast(
-        `${data.nickname || 'Viewer'} sent ${count}× ${data.giftName || 'Gift'}! Hint unlocked!`,
-        'gold'
-      );
+      if (internalRoundRef.current) {
+        const hintWord = revealWikiconHint(internalRoundRef.current);
+        setRound(serializeWikiconRound(internalRoundRef.current));
+        soundFX.playWordHit('UNCOMMON');
+        showToast(
+          `${data.nickname || 'Viewer'} sent ${count}× ${data.giftName || 'Gift'}! ${
+            hintWord ? `Hint revealed: "${hintWord.toUpperCase()}"` : 'Hint unlocked!'
+          }`,
+          'gold'
+        );
+      } else {
+        showToast(
+          `${data.nickname || 'Viewer'} sent ${count}× ${data.giftName || 'Gift'}! Hint unlocked!`,
+          'gold'
+        );
+      }
     });
 
     return () => {
@@ -469,12 +539,15 @@ export function App() {
   };
 
   // Emit connect-tiktok / disconnect-tiktok
-  const handleConnectTikTok = (username: string) => {
+  const handleConnectTikTok = (username: string, isTestMode = false) => {
     if (!socketRef.current) return;
     recordActivity();
     setTiktokConnState('connecting');
     setTiktokError(null);
-    socketRef.current.emit('connect-tiktok', username);
+    socketRef.current.emit('connect-tiktok', {
+      username: username.replace(/^@+/, ''),
+      isTestMode,
+    });
   };
 
   const handleDisconnectTikTok = () => {
@@ -531,70 +604,66 @@ export function App() {
     if (!clean) return;
     setGuessInput('');
 
-    try {
-      const res = await fetch('/api/round/guess', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          word: clean,
-          player: {
-            username: profile.username,
-            displayName: profile.displayName,
-            avatar: profile.displayName.slice(0, 2).toUpperCase(),
-            platform: 'web',
-            cosmeticTitle: profile.equippedTitle,
-          },
-        }),
+    if (internalRoundRef.current) {
+      const r = handleWikiconGuess(internalRoundRef.current, clean, {
+        username: profile.username,
+        displayName: profile.displayName,
+        avatar: profile.displayName.slice(0, 2).toUpperCase(),
+        platform: 'web',
+        cosmeticTitle: profile.equippedTitle,
       });
-      const data = await res.json();
-      if (data.ok && data.result) {
-        const r = data.result;
-        if (!r.valid) {
-          soundFX.playMiss();
-          showToast(`"${clean.toUpperCase()}" is a pre-revealed common scaffolding word.`, 'muted');
-          return;
-        }
-        if (r.alreadyRevealed && !r.titleMatched && !r.gridTargetHit) {
-          soundFX.playKeycapTap(2);
-          showToast(`"${clean.toUpperCase()}" was already discovered (#${r.rank})`, 'muted');
-          return;
-        }
+      setRound(serializeWikiconRound(internalRoundRef.current));
 
-        const bonusMult =
-          1 +
-          profile.businesses.reduce((acc, b) => acc + b.wordBonusPct * b.level, 0) / 100;
-        const coinReward = Math.max(25, Math.round((r.pointsEarned / 25) * bonusMult));
-
-        if (r.titleMatched) {
-          soundFX.playWordHit('TITLE');
-          showToast(
-            `TITLE WORD: ${clean.toUpperCase()}! +${r.pointsEarned.toLocaleString()} pts`,
-            'gold'
-          );
-        } else if (r.occurrencesRevealed > 0 || r.gridTargetHit) {
-          soundFX.playWordHit(r.rarity);
-          showToast(
-            `Found "${clean.toUpperCase()}" (×${r.occurrencesRevealed} · #${r.rank}) +${r.pointsEarned.toLocaleString()} pts`,
-            'green'
-          );
-        } else {
-          soundFX.playKeycapTap(4);
-          showToast(
-            `Semantic Rank #${r.rank} for "${clean.toUpperCase()}" (${r.similarity}%)`,
-            'cyan'
-          );
-        }
-
-        setProfile((p) => ({
-          ...p,
-          coins: p.coins + coinReward,
-          totalWordsFound:
-            r.occurrencesRevealed > 0 || r.gridTargetHit
-              ? p.totalWordsFound + 1
-              : p.totalWordsFound,
-        }));
+      if (!r.valid) {
+        soundFX.playMiss();
+        showToast(`"${clean.toUpperCase()}" is a pre-revealed common scaffolding word.`, 'muted');
+        return;
       }
-    } catch (_) {}
+      if (r.alreadyRevealed && !r.titleMatched && !r.gridTargetHit) {
+        soundFX.playKeycapTap(2);
+        showToast(`"${clean.toUpperCase()}" was already discovered (#${r.rank})`, 'muted');
+        return;
+      }
+
+      const pointsEarned = r.pointsEarned ?? 0;
+      const occurrencesRevealed = r.occurrencesRevealed ?? 0;
+      const rarity = r.rarity ?? 'COMMON';
+
+      const bonusMult =
+        1 +
+        profile.businesses.reduce((acc, b) => acc + b.wordBonusPct * b.level, 0) / 100;
+      const coinReward = Math.max(25, Math.round((pointsEarned / 25) * bonusMult));
+
+      if (r.titleMatched) {
+        soundFX.playWordHit('TITLE');
+        showToast(
+          `TITLE WORD: ${clean.toUpperCase()}! +${pointsEarned.toLocaleString()} pts`,
+          'gold'
+        );
+      } else if (occurrencesRevealed > 0 || r.gridTargetHit) {
+        soundFX.playWordHit(rarity);
+        showToast(
+          `Found "${clean.toUpperCase()}" (×${occurrencesRevealed} · #${r.rank}) +${pointsEarned.toLocaleString()} pts`,
+          'green'
+        );
+      } else {
+        soundFX.playKeycapTap(4);
+        showToast(
+          `Semantic Rank #${r.rank} for "${clean.toUpperCase()}" (${r.similarity}%)`,
+          'cyan'
+        );
+      }
+
+      setProfile((p) => ({
+        ...p,
+        coins: p.coins + coinReward,
+        totalWordsFound:
+          occurrencesRevealed > 0 || r.gridTargetHit
+            ? p.totalWordsFound + 1
+            : p.totalWordsFound,
+      }));
+      return;
+    }
   };
 
   const handleRequestHint = async () => {
