@@ -220,6 +220,20 @@ export default function App() {
       : '@'
   );
   const [inlineConnecting, setInlineConnecting] = useState(false);
+  const [inlineChatProvider, setInlineChatProvider] = useState<'tikfinity' | 'bettertok'>(() => {
+    try {
+      const saved = localStorage.getItem('chat_integration_provider');
+      if (saved === 'bettertok' || saved === 'tikfinity') return saved;
+    } catch {}
+    return 'tikfinity';
+  });
+
+  const handleInlineProviderChange = (provider: 'tikfinity' | 'bettertok') => {
+    setInlineChatProvider(provider);
+    try {
+      localStorage.setItem('chat_integration_provider', provider);
+    } catch {}
+  };
 
   useEffect(() => {
     if (authorizedStreamer?.username) {
@@ -345,6 +359,7 @@ export default function App() {
     socketRef.current.emit('connect-tiktok', {
       username: cleaned,
       isTestMode,
+      provider: inlineChatProvider,
       key: authorizedStreamer?.key,
       sessionId: getOrInitTabSessionId(),
     });
@@ -449,6 +464,7 @@ export default function App() {
   const prevCompleteRef = useRef<boolean>(false);
   const announceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const chatListRef = useRef<HTMLDivElement | null>(null);
+  const chatBottomRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     modeRef.current = mode;
@@ -530,7 +546,12 @@ export default function App() {
         if (!rawComment) return;
 
         const viewerUsername = (data.uniqueId || 'viewer').replace(/^@+/, '');
-        const viewerDisplay = data.nickname || viewerUsername || 'Viewer';
+        const viewerDisplay = (data.nickname || viewerUsername || 'Viewer').replace(/^@+/, '');
+        const rawPfp = (data.profilePictureUrl || '').trim();
+        const normalizedPfp = rawPfp.startsWith('//') ? `https:${rawPfp}` : rawPfp;
+        const viewerAvatar = normalizedPfp.startsWith('http')
+          ? normalizedPfp
+          : `https://i.pravatar.cc/150?u=${encodeURIComponent(viewerUsername || viewerDisplay)}`;
 
         if (rawComment.toLowerCase() === '!hint' && localGameRef.current) {
           localGameRef.current.requestHint();
@@ -554,7 +575,7 @@ export default function App() {
             displayName: viewerDisplay,
             platform: 'tiktok',
             platformUserId: viewerUsername,
-            profileImage: data.profilePictureUrl || null,
+            profileImage: viewerAvatar,
           };
 
           for (const candidate of candidateWords.slice(0, 5)) {
@@ -605,14 +626,14 @@ export default function App() {
           platform: 'tiktok',
           username: viewerUsername,
           displayName: viewerDisplay,
-          profileImage: data.profilePictureUrl || undefined,
+          profileImage: viewerAvatar,
           comment: matchedWord ? matchedWord.toUpperCase() : rawComment,
           guessResult: bestResult,
           points: totalPointsEarned > 0 ? totalPointsEarned : undefined,
           timestamp: Date.now(),
           eventType: 'chat',
         };
-        setChatHistory((prev) => [...prev.slice(-39), chatItem]);
+        setChatHistory((prev) => [...prev.slice(-149), chatItem]);
       }
     );
 
@@ -860,7 +881,7 @@ export default function App() {
         uniqueId: viewer.uniqueId,
         nickname: viewer.nickname,
         comment: chosen,
-        profilePictureUrl: '',
+        profilePictureUrl: `https://i.pravatar.cc/150?u=${encodeURIComponent(viewer.uniqueId)}`,
       });
     }
   };
@@ -871,11 +892,17 @@ export default function App() {
   );
 
   useEffect(() => {
-    const el = chatListRef.current;
-    if (el) {
-      el.scrollTop = el.scrollHeight;
-    }
-  }, [chatOnlyItems]);
+    const scrollToLatest = () => {
+      const el = chatListRef.current;
+      if (el) {
+        el.scrollTop = el.scrollHeight;
+      }
+      chatBottomRef.current?.scrollIntoView({ block: 'end' });
+    };
+    scrollToLatest();
+    const rafId = requestAnimationFrame(scrollToLatest);
+    return () => cancelAnimationFrame(rafId);
+  }, [chatOnlyItems, chatOnlyItems.length]);
 
   const isSolo = mode === 'daily-solo' || mode === 'practice-solo';
   const showVictoryModal =
@@ -1035,6 +1062,42 @@ export default function App() {
                     fontFamily: 'monospace',
                   }}
                 />
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  <button
+                    type="button"
+                    onClick={() => handleInlineProviderChange('tikfinity')}
+                    style={{
+                      flex: 1,
+                      padding: '4px 6px',
+                      borderRadius: '6px',
+                      fontSize: '10px',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      border: '1px solid var(--border-soft)',
+                      background: inlineChatProvider === 'tikfinity' ? 'var(--accent-orange)' : 'var(--bg)',
+                      color: inlineChatProvider === 'tikfinity' ? '#fff' : 'var(--text-dim)',
+                    }}
+                  >
+                    Tikfinity
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleInlineProviderChange('bettertok')}
+                    style={{
+                      flex: 1,
+                      padding: '4px 6px',
+                      borderRadius: '6px',
+                      fontSize: '10px',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      border: '1px solid var(--border-soft)',
+                      background: inlineChatProvider === 'bettertok' ? 'var(--accent-orange)' : 'var(--bg)',
+                      color: inlineChatProvider === 'bettertok' ? '#fff' : 'var(--text-dim)',
+                    }}
+                  >
+                    BetterTok
+                  </button>
+                </div>
                 <button
                   type="submit"
                   className="side-footer-btn primary"
@@ -1249,6 +1312,7 @@ export default function App() {
                 );
               })
             )}
+            <div ref={chatBottomRef} />
           </div>
 
           <div className="side-box-footer">

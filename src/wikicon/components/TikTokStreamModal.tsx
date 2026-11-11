@@ -87,6 +87,20 @@ export const TikTokStreamModal: React.FC<TikTokStreamModalProps> = ({
   const [simAvatarUrl, setSimAvatarUrl] = useState('');
   const [simComment, setSimComment] = useState('polar lights 1920');
   const [simGiftName, setSimGiftName] = useState('Galaxy');
+  const [chatProvider, setChatProvider] = useState<'tikfinity' | 'bettertok'>(() => {
+    try {
+      const saved = localStorage.getItem('chat_integration_provider');
+      if (saved === 'bettertok' || saved === 'tikfinity') return saved;
+    } catch {}
+    return 'tikfinity';
+  });
+
+  const handleProviderChange = (provider: 'tikfinity' | 'bettertok') => {
+    setChatProvider(provider);
+    try {
+      localStorage.setItem('chat_integration_provider', provider);
+    } catch {}
+  };
 
   useEffect(() => {
     if (authenticatedStreamer) {
@@ -131,34 +145,43 @@ export const TikTokStreamModal: React.FC<TikTokStreamModalProps> = ({
   const handleFakeChatSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!simComment.trim()) return;
+    const uid = simNickname.toLowerCase().replace(/\s+/g, '_') || 'viewer_1';
+    const pfp =
+      simAvatarUrl.trim() || `https://i.pravatar.cc/150?u=${encodeURIComponent(uid)}`;
     onSimulateChat({
-      uniqueId: simNickname.toLowerCase().replace(/\s+/g, '_') || 'viewer_1',
+      uniqueId: uid,
       nickname: simNickname || 'TikTok Viewer',
       comment: simComment,
-      profilePictureUrl: simAvatarUrl.trim(),
+      profilePictureUrl: pfp,
     });
     setSimComment('');
   };
 
   const handleFakeLikeClick = () => {
+    const uid = simNickname.toLowerCase().replace(/\s+/g, '_') || 'viewer_1';
+    const pfp =
+      simAvatarUrl.trim() || `https://i.pravatar.cc/150?u=${encodeURIComponent(uid)}`;
     onSimulateLike({
-      uniqueId: simNickname.toLowerCase().replace(/\s+/g, '_') || 'viewer_1',
+      uniqueId: uid,
       nickname: simNickname || 'TikTok Viewer',
       likeCount: 15,
       totalLikeCount: totalLikesCount + 15,
-      profilePictureUrl: simAvatarUrl.trim(),
+      profilePictureUrl: pfp,
     });
   };
 
   const handleFakeGiftClick = () => {
+    const uid = simNickname.toLowerCase().replace(/\s+/g, '_') || 'viewer_1';
+    const pfp =
+      simAvatarUrl.trim() || `https://i.pravatar.cc/150?u=${encodeURIComponent(uid)}`;
     onSimulateGift({
-      uniqueId: simNickname.toLowerCase().replace(/\s+/g, '_') || 'viewer_1',
+      uniqueId: uid,
       nickname: simNickname || 'TikTok Viewer',
       giftName: simGiftName || 'Rose',
       diamondCount: 100,
       repeatCount: 1,
       repeatEnd: true,
-      profilePictureUrl: simAvatarUrl.trim(),
+      profilePictureUrl: pfp,
     });
   };
 
@@ -248,6 +271,40 @@ export const TikTokStreamModal: React.FC<TikTokStreamModalProps> = ({
                 />
               </div>
 
+              {/* Chat Integration Configuration Panel */}
+              <div className="p-3 rounded-xl bg-[#061c3d] border border-[#1768b3] space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-[#96b8dd]">Chat Integration Provider</span>
+                  <div className="flex items-center gap-1 p-0.5 bg-[#020a25] rounded-lg border border-[#1768b3]">
+                    <button
+                      type="button"
+                      onClick={() => handleProviderChange('tikfinity')}
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-extrabold transition-colors cursor-pointer ${
+                        chatProvider === 'tikfinity'
+                          ? 'bg-[#19e4ff] text-[#020a25]'
+                          : 'text-[#96b8dd] hover:text-white'
+                      }`}
+                    >
+                      Tikfinity
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleProviderChange('bettertok')}
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-extrabold transition-colors cursor-pointer ${
+                        chatProvider === 'bettertok'
+                          ? 'bg-[#19e4ff] text-[#020a25]'
+                          : 'text-[#96b8dd] hover:text-white'
+                      }`}
+                    >
+                      BetterTok
+                    </button>
+                  </div>
+                </div>
+                <div className="text-[10px] font-mono text-[#96b8dd] truncate">
+                  Webhook: {typeof window !== 'undefined' ? window.location.origin : ''}/api/{chatProvider}/event
+                </div>
+              </div>
+
               <button
                 type="submit"
                 disabled={loggingIn}
@@ -317,7 +374,9 @@ export const TikTokStreamModal: React.FC<TikTokStreamModalProps> = ({
                         disabled={connectionState === 'connecting'}
                         className="px-4 py-2 rounded-xl bg-[#19e4ff] hover:bg-[#5cecff] text-[#020a25] text-xs font-extrabold cursor-pointer whitespace-nowrap"
                       >
-                        {connectionState === 'connecting' ? 'Connecting...' : 'Connect Live'}
+                        {connectionState === 'connecting'
+                          ? 'Connecting...'
+                          : `Connect (${chatProvider === 'tikfinity' ? 'Tikfinity' : 'BetterTok'})`}
                       </button>
                       <button
                         type="button"
@@ -330,6 +389,40 @@ export const TikTokStreamModal: React.FC<TikTokStreamModalProps> = ({
                     </>
                   )}
                 </form>
+
+                {/* Toggle Button between Tikfinity input or BetterTok input */}
+                <div className="space-y-2 pt-1 border-t border-[#1768b3]/50">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-[#96b8dd]">Chat Input Provider</span>
+                    <div className="flex items-center gap-1 p-0.5 bg-[#020a25] rounded-lg border border-[#1768b3]">
+                      <button
+                        type="button"
+                        onClick={() => handleProviderChange('tikfinity')}
+                        className={`px-2.5 py-1 rounded-md text-[11px] font-extrabold transition-colors cursor-pointer ${
+                          chatProvider === 'tikfinity'
+                            ? 'bg-[#19e4ff] text-[#020a25]'
+                            : 'text-[#96b8dd] hover:text-white'
+                        }`}
+                      >
+                        Tikfinity
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleProviderChange('bettertok')}
+                        className={`px-2.5 py-1 rounded-md text-[11px] font-extrabold transition-colors cursor-pointer ${
+                          chatProvider === 'bettertok'
+                            ? 'bg-[#19e4ff] text-[#020a25]'
+                            : 'text-[#96b8dd] hover:text-white'
+                        }`}
+                      >
+                        BetterTok
+                      </button>
+                    </div>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-[#020a25] border border-[#1768b3]/60 text-[11px] font-mono text-[#d8eaff] select-all break-all">
+                    {typeof window !== 'undefined' ? window.location.origin : ''}/api/{chatProvider}/event
+                  </div>
+                </div>
 
                 {errorMessage && (
                   <div className="p-2.5 rounded-lg bg-red-950/70 border border-red-500/60 text-red-200 text-xs">

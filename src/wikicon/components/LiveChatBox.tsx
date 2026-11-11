@@ -14,14 +14,21 @@ export const LiveChatBox: React.FC<LiveChatBoxProps> = ({
   isLightMode = false,
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const bottomAnchorRef = useRef<HTMLDivElement>(null);
 
   // Automatically scroll the chat box to show most recent chat
   useEffect(() => {
-    const el = scrollContainerRef.current;
-    if (el) {
-      el.scrollTop = el.scrollHeight;
-    }
-  }, [messages]);
+    const scrollToLatest = () => {
+      const el = scrollContainerRef.current;
+      if (el) {
+        el.scrollTop = el.scrollHeight;
+      }
+      bottomAnchorRef.current?.scrollIntoView({ block: 'end' });
+    };
+    scrollToLatest();
+    const rafId = requestAnimationFrame(scrollToLatest);
+    return () => cancelAnimationFrame(rafId);
+  }, [messages, messages.length]);
 
   return (
     <aside
@@ -50,7 +57,7 @@ export const LiveChatBox: React.FC<LiveChatBoxProps> = ({
       {/* Chat Messages Only (No likes/gifts in chat box; shows profile picture + display name, not @ name) */}
       <div
         ref={scrollContainerRef}
-        className="flex-1 p-3 overflow-y-auto space-y-2.5 scroll-smooth"
+        className="flex-1 min-h-0 p-3 overflow-y-auto space-y-2.5"
       >
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center px-4 text-xs text-[#96b8dd]">
@@ -61,8 +68,12 @@ export const LiveChatBox: React.FC<LiveChatBoxProps> = ({
           </div>
         ) : (
           messages.map((msg) => {
-            const displayName = msg.nickname || 'Viewer';
-            const initials = displayName.slice(0, 2).toUpperCase();
+            const displayName = (msg.nickname || msg.uniqueId || 'Viewer').replace(/^@+/, '');
+            const fallbackUrl = `https://i.pravatar.cc/150?u=${encodeURIComponent(msg.uniqueId || displayName)}`;
+            const avatarSrc =
+              msg.profilePictureUrl && msg.profilePictureUrl.startsWith('http')
+                ? msg.profilePictureUrl
+                : fallbackUrl;
             return (
               <div
                 key={msg.id}
@@ -72,21 +83,18 @@ export const LiveChatBox: React.FC<LiveChatBoxProps> = ({
                     : 'bg-[#020a25]/70 border-[#1768b3]/40'
                 }`}
               >
-                {msg.profilePictureUrl && msg.profilePictureUrl.startsWith('http') ? (
-                  <img
-                    src={msg.profilePictureUrl}
-                    alt={displayName}
-                    referrerPolicy="no-referrer"
-                    className="w-8 h-8 rounded-full object-cover border border-[#19e4ff] shrink-0"
-                    onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).style.display = 'none';
-                    }}
-                  />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-[#061c3d] border border-[#19e4ff] flex items-center justify-center text-xs font-extrabold text-[#19e4ff] shrink-0">
-                    {initials}
-                  </div>
-                )}
+                <img
+                  src={avatarSrc}
+                  alt={displayName}
+                  referrerPolicy="no-referrer"
+                  className="w-8 h-8 rounded-full object-cover border border-[#19e4ff] shrink-0"
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    if (target.src !== fallbackUrl) {
+                      target.src = fallbackUrl;
+                    }
+                  }}
+                />
 
                 <div className="min-w-0 flex-1">
                   <div className="text-xs font-extrabold text-[#19e4ff] truncate">
@@ -104,6 +112,7 @@ export const LiveChatBox: React.FC<LiveChatBoxProps> = ({
             );
           })
         )}
+        <div ref={bottomAnchorRef} />
       </div>
     </aside>
   );

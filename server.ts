@@ -16,6 +16,7 @@ export type WebcastPushConnection = TikTokLiveConnection;
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
@@ -28,27 +29,221 @@ const io = new Server(httpServer, {
 let tiktokConn: TikTokLiveConnection | null = null;
 let currentConnectedUsername: string | null = null;
 let currentRoomId: string | null = null;
+let currentProvider: 'tikfinity' | 'bettertok' = 'tikfinity';
 
-function extractProfilePicture(data: any): string {
-  if (!data) return '';
-  if (typeof data.profilePictureUrl === 'string' && data.profilePictureUrl.startsWith('http')) {
-    return data.profilePictureUrl;
+function isTemplatePlaceholder(val: string): boolean {
+  const trimmed = val.trim();
+  return (
+    !trimmed ||
+    trimmed === 'undefined' ||
+    trimmed === 'null' ||
+    (/^\{.*\}$/.test(trimmed)) ||
+    (/^\$\{.*\}$/.test(trimmed)) ||
+    (/^%.*%$/.test(trimmed))
+  );
+}
+
+function normalizeImageUrl(url: unknown): string {
+  if (typeof url !== 'string') return '';
+  const trimmed = url.trim();
+  if (!trimmed || isTemplatePlaceholder(trimmed)) return '';
+  if (trimmed.startsWith('//')) {
+    return `https:${trimmed}`;
   }
-  const user = data.user || data;
-  if (typeof user.profilePictureUrl === 'string' && user.profilePictureUrl.startsWith('http')) {
-    return user.profilePictureUrl;
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return trimmed;
   }
-  const candidates = [
-    user?.profilePicture?.urls?.[0],
-    user?.profilePicture?.mUrls?.[0],
-    user?.avatarThumb?.urls?.[0],
-    user?.avatarThumb?.mUrls?.[0],
-    user?.avatarMedium?.urls?.[0],
-    user?.avatarLarge?.urls?.[0],
+  return '';
+}
+
+function pickBestUrlFromList(list: unknown): string {
+  if (!Array.isArray(list) || list.length === 0) return '';
+  const validUrls = list.map(normalizeImageUrl).filter(Boolean);
+  if (validUrls.length === 0) return '';
+  return (
+    validUrls.find((u) => u.includes('100x100') && u.includes('.jpeg')) ||
+    validUrls.find((u) => u.includes('100x100') && u.includes('.webp')) ||
+    validUrls.find((u) => !u.includes('shrink')) ||
+    validUrls[0]
+  );
+}
+
+function extractImageFromField(field: any): string {
+  if (!field) return '';
+  if (typeof field === 'string') return normalizeImageUrl(field);
+  if (Array.isArray(field)) return pickBestUrlFromList(field);
+  if (typeof field === 'object') {
+    const fromList =
+      pickBestUrlFromList(field.urlList) ||
+      pickBestUrlFromList(field.urls) ||
+      pickBestUrlFromList(field.url_list) ||
+      pickBestUrlFromList(field.mUrls) ||
+      pickBestUrlFromList(field.url);
+    if (fromList) return fromList;
+    const direct =
+      normalizeImageUrl(field.url) ||
+      normalizeImageUrl(field.uri) ||
+      normalizeImageUrl(field.openWebUrl);
+    if (direct) return direct;
+  }
+  return '';
+}
+
+function extractUserIdentity(raw: any): { uniqueId: string; nickname: string } {
+  const root = raw?.data && typeof raw.data === 'object' ? { ...raw, ...raw.data } : raw || {};
+  const eventObj = root?.event && typeof root.event === 'object' ? root.event : {};
+  const user =
+    root.user ||
+    root.sender ||
+    root.author ||
+    root.common?.user ||
+    eventObj.user ||
+    eventObj.sender ||
+    {};
+
+  const rawUniqueCandidates = [
+    user.uniqueId,
+    user.displayId,
+    user.username,
+    user.handle,
+    user.user_name,
+    user.idStr,
+    user.userId,
+    root.uniqueId,
+    root.displayId,
+    root.username,
+    root.handle,
+    root.user_name,
+    root.userId,
+    eventObj.uniqueId,
+    eventObj.username,
   ];
-  for (const url of candidates) {
-    if (typeof url === 'string' && url.startsWith('http')) {
-      return url;
+
+  let uniqueId = '';
+  for (const c of rawUniqueCandidates) {
+    if (typeof c === 'string' && !isTemplatePlaceholder(c)) {
+      uniqueId = c.trim().replace(/^@+/, '');
+      if (uniqueId) break;
+    }
+  }
+
+  const rawNickCandidates = [
+    user.nickname,
+    user.nickName,
+    user.displayName,
+    user.display_name,
+    user.name,
+    user.screenName,
+    root.nickname,
+    root.nickName,
+    root.displayName,
+    root.display_name,
+    root.name,
+    root.screenName,
+    eventObj.nickname,
+    eventObj.displayName,
+    eventObj.name,
+  ];
+
+  let nickname = '';
+  for (const c of rawNickCandidates) {
+    if (typeof c === 'string' && !isTemplatePlaceholder(c)) {
+      nickname = c.trim().replace(/^@+/, '');
+      if (nickname) break;
+    }
+  }
+
+  if (!nickname && uniqueId) nickname = uniqueId;
+  if (!uniqueId && nickname) {
+    uniqueId = nickname.toLowerCase().replace(/[^a-z0-9_.-]/g, '_') || 'viewer';
+  }
+  if (!uniqueId) uniqueId = 'viewer';
+  if (!nickname) nickname = 'TikTok Viewer';
+
+  return { uniqueId, nickname };
+}
+
+function extractProfilePicture(raw: any, fallbackSeed?: string): string {
+  if (!raw) {
+    const seed = encodeURIComponent(fallbackSeed || 'viewer');
+    return `https://i.pravatar.cc/150?u=${seed}`;
+  }
+  const root = raw?.data && typeof raw.data === 'object' ? { ...raw, ...raw.data } : raw;
+  const eventObj = root?.event && typeof root.event === 'object' ? root.event : {};
+  const user =
+    root.user ||
+    root.sender ||
+    root.author ||
+    root.common?.user ||
+    eventObj.user ||
+    eventObj.sender ||
+    root;
+
+  const fieldCandidates = [
+    root.profilePictureUrl,
+    root.profilePicture,
+    root.avatarUrl,
+    root.avatar,
+    root.profileImage,
+    root.pfp,
+    root.picture,
+    root.photoUrl,
+    root.user_avatar,
+    root.profile_picture_url,
+    user?.profilePictureUrl,
+    user?.profilePicture,
+    user?.avatarLarge,
+    user?.avatarMedium,
+    user?.avatarThumb,
+    user?.avatarLarger,
+    user?.avatarUrl,
+    user?.avatar,
+    user?.profileImage,
+    user?.pfp,
+    user?.picture,
+    user?.photoUrl,
+    user?.user_avatar,
+    user?.profile_picture_url,
+    user?.userDetails?.profilePictureUrls,
+    eventObj?.profilePictureUrl,
+    eventObj?.avatarUrl,
+    eventObj?.avatar,
+  ];
+
+  for (const candidate of fieldCandidates) {
+    const extracted = extractImageFromField(candidate);
+    if (extracted) {
+      return extracted;
+    }
+  }
+
+  const { uniqueId, nickname } = extractUserIdentity(raw);
+  const seed = encodeURIComponent(fallbackSeed || uniqueId || nickname || 'viewer');
+  return `https://i.pravatar.cc/150?u=${seed}`;
+}
+
+function extractCommentText(raw: any): string {
+  if (!raw) return '';
+  const root = raw?.data && typeof raw.data === 'object' ? { ...raw, ...raw.data } : raw;
+  const eventObj = root?.event && typeof root.event === 'object' ? root.event : {};
+  const candidates = [
+    root.comment,
+    root.content,
+    root.message,
+    root.text,
+    root.word,
+    root.msg,
+    root.chatMessage,
+    root.chat,
+    eventObj.comment,
+    eventObj.content,
+    eventObj.message,
+    eventObj.text,
+  ];
+  for (const c of candidates) {
+    if (typeof c === 'string' && !isTemplatePlaceholder(c)) {
+      const trimmed = c.trim();
+      if (trimmed) return trimmed;
     }
   }
   return '';
@@ -56,13 +251,13 @@ function extractProfilePicture(data: any): string {
 
 io.on('connection', (socket) => {
   socket.emit('tiktok-status', {
-    connected: Boolean(tiktokConn && currentConnectedUsername),
+    connected: Boolean(tiktokConn || currentConnectedUsername),
     username: currentConnectedUsername || '',
     roomId: currentRoomId || '',
+    provider: currentProvider,
   });
 
   socket.on('register-streamer', (data: any) => {
-    // Acknowledge streamer session registration
     socket.emit('streamer-registered', { ok: true, username: data?.username });
   });
 
@@ -76,6 +271,9 @@ io.on('connection', (socket) => {
   socket.on('connect-tiktok', (payload: any) => {
     const rawUsername = typeof payload === 'string' ? payload : payload?.username;
     const isTestMode = typeof payload === 'object' && Boolean(payload?.isTestMode);
+    if (payload?.provider === 'bettertok' || payload?.provider === 'tikfinity') {
+      currentProvider = payload.provider;
+    }
 
     if (tiktokConn) {
       try {
@@ -104,11 +302,14 @@ io.on('connection', (socket) => {
         username: cleanUsername,
         roomId: currentRoomId,
         isTestMode: true,
+        provider: currentProvider,
       });
       io.emit('tiktok-status', {
         connected: true,
         username: cleanUsername,
         roomId: currentRoomId,
+        isTestMode: true,
+        provider: currentProvider,
       });
       return;
     }
@@ -124,18 +325,21 @@ io.on('connection', (socket) => {
           if (tiktokConn !== activeConn) return;
           currentConnectedUsername = cleanUsername;
           currentRoomId = state.roomId || 'LIVE';
-          socket.emit('tiktok-connected', { username: cleanUsername, roomId: currentRoomId });
+          socket.emit('tiktok-connected', {
+            username: cleanUsername,
+            roomId: currentRoomId,
+            provider: currentProvider,
+          });
           io.emit('tiktok-status', {
             connected: true,
             username: cleanUsername,
             roomId: currentRoomId,
+            provider: currentProvider,
           });
         })
         .catch((err) => {
-          // If the user is not currently broadcasting live on TikTok or TikTok blocks room scraping,
-          // activate the Live Relay / Simulation room so the game connects cleanly and accepts chat/webhook events.
           console.warn(
-            `[TikTok Live] Direct room scrape for @${cleanUsername} unavailable (${err?.message || 'offline'}); activating Live Relay room.`
+            `[TikTok Live] Direct room scrape for @${cleanUsername} unavailable (${err?.message || 'offline'}); activating Live Relay room (${currentProvider}).`
           );
           if (tiktokConn === activeConn) {
             tiktokConn = null;
@@ -146,21 +350,22 @@ io.on('connection', (socket) => {
             username: cleanUsername,
             roomId: currentRoomId,
             relayFallback: true,
+            provider: currentProvider,
           });
           io.emit('tiktok-status', {
             connected: true,
             username: cleanUsername,
             roomId: currentRoomId,
+            provider: currentProvider,
           });
         });
 
       activeConn.on(WebcastEvent.CHAT, (data: any) => {
-        const uniqueId = data?.user?.uniqueId || data?.uniqueId || 'viewer';
-        const nickname = data?.user?.nickname || data?.nickname || uniqueId;
-        const comment = String(data?.comment || data?.content || '').trim();
+        const comment = extractCommentText(data);
         if (!comment) return;
-        const profilePictureUrl = extractProfilePicture(data);
-        console.log(`[TikTok Chat] ${nickname}: "${comment}"`);
+        const { uniqueId, nickname } = extractUserIdentity(data);
+        const profilePictureUrl = extractProfilePicture(data, uniqueId || nickname);
+        console.log(`[TikTok Chat] ${nickname} (@${uniqueId}): "${comment}"`);
         io.emit('chat-message', {
           uniqueId,
           nickname,
@@ -170,11 +375,10 @@ io.on('connection', (socket) => {
       });
 
       activeConn.on(WebcastEvent.LIKE, (data: any) => {
-        const uniqueId = data?.user?.uniqueId || data?.uniqueId || 'viewer';
-        const nickname = data?.user?.nickname || data?.nickname || uniqueId;
-        const likeCount = Number(data?.likeCount) || 1;
-        const totalLikeCount = Number(data?.totalLikeCount) || likeCount;
-        const profilePictureUrl = extractProfilePicture(data);
+        const { uniqueId, nickname } = extractUserIdentity(data);
+        const likeCount = Number(data?.likeCount ?? data?.count) || 1;
+        const totalLikeCount = Number(data?.totalLikeCount ?? data?.total) || likeCount;
+        const profilePictureUrl = extractProfilePicture(data, uniqueId || nickname);
         io.emit('like-event', {
           uniqueId,
           nickname,
@@ -185,13 +389,14 @@ io.on('connection', (socket) => {
       });
 
       activeConn.on(WebcastEvent.GIFT, (data: any) => {
-        const uniqueId = data?.user?.uniqueId || data?.uniqueId || 'viewer';
-        const nickname = data?.user?.nickname || data?.nickname || uniqueId;
-        const giftName = data?.giftName || data?.giftDetails?.giftName || 'Gift';
-        const diamondCount = Number(data?.diamondCount || data?.giftDetails?.diamondCount) || 1;
+        const { uniqueId, nickname } = extractUserIdentity(data);
+        const giftName =
+          data?.giftName || data?.gift?.name || data?.giftDetails?.giftName || 'Gift';
+        const diamondCount =
+          Number(data?.diamondCount ?? data?.gift?.diamondCount ?? data?.giftDetails?.diamondCount) || 1;
         const repeatCount = Number(data?.repeatCount) || 1;
-        const repeatEnd = data?.repeatEnd !== false;
-        const profilePictureUrl = extractProfilePicture(data);
+        const repeatEnd = data?.repeatEnd !== false && data?.repeatEnd !== 0;
+        const profilePictureUrl = extractProfilePicture(data, uniqueId || nickname);
         io.emit('gift-event', {
           uniqueId,
           nickname,
@@ -223,11 +428,13 @@ io.on('connection', (socket) => {
         username: cleanUsername,
         roomId: currentRoomId,
         relayFallback: true,
+        provider: currentProvider,
       });
       io.emit('tiktok-status', {
         connected: true,
         username: cleanUsername,
         roomId: currentRoomId,
+        provider: currentProvider,
       });
     }
   });
@@ -240,42 +447,112 @@ io.on('connection', (socket) => {
         // ignore
       }
       tiktokConn = null;
-      currentConnectedUsername = null;
-      currentRoomId = null;
     }
+    currentConnectedUsername = null;
+    currentRoomId = null;
     io.emit('tiktok-disconnected');
     io.emit('tiktok-status', { connected: false, username: '', roomId: '' });
   });
 
-  socket.on('chat-message', (data) => io.emit('chat-message', data));
-  socket.on('like-event', (data) => io.emit('like-event', data));
-  socket.on('gift-event', (data) => io.emit('gift-event', data));
+  socket.on('chat-message', (data) => {
+    const comment = extractCommentText(data);
+    if (!comment) return;
+    const { uniqueId, nickname } = extractUserIdentity(data);
+    const profilePictureUrl = extractProfilePicture(data, uniqueId || nickname);
+    io.emit('chat-message', {
+      ...data,
+      uniqueId,
+      nickname,
+      comment,
+      profilePictureUrl,
+    });
+  });
+
+  socket.on('like-event', (data) => {
+    const { uniqueId, nickname } = extractUserIdentity(data);
+    const profilePictureUrl = extractProfilePicture(data, uniqueId || nickname);
+    io.emit('like-event', {
+      ...data,
+      uniqueId,
+      nickname,
+      likeCount: Number(data?.likeCount ?? data?.count) || 1,
+      totalLikeCount: Number(data?.totalLikeCount ?? data?.total) || 1,
+      profilePictureUrl,
+    });
+  });
+
+  socket.on('gift-event', (data) => {
+    const { uniqueId, nickname } = extractUserIdentity(data);
+    const profilePictureUrl = extractProfilePicture(data, uniqueId || nickname);
+    io.emit('gift-event', {
+      ...data,
+      uniqueId,
+      nickname,
+      giftName: data?.giftName || data?.gift?.name || 'Gift',
+      diamondCount: Number(data?.diamondCount ?? data?.gift?.diamondCount) || 1,
+      repeatCount: Number(data?.repeatCount) || 1,
+      repeatEnd: data?.repeatEnd !== false && data?.repeatEnd !== 0,
+      profilePictureUrl,
+    });
+  });
 });
 
-// REST webhook endpoint for external relay tools / OBS scripts (Tikfinity)
-app.post('/api/tiktok/event', (req, res) => {
-  const { comment, nickname, uniqueId, profilePictureUrl } = req.body || {};
-  const cleanComment = String(comment || req.body?.word || req.body?.text || '').trim();
-  if (cleanComment) {
-    io.emit('chat-message', {
-      uniqueId: uniqueId || nickname || 'viewer',
-      nickname: nickname || 'TikTok Player',
-      comment: cleanComment,
-      profilePictureUrl: profilePictureUrl || '',
+function handleWebhookEvent(
+  provider: 'tiktok' | 'tikfinity' | 'bettertok',
+  req: express.Request,
+  res: express.Response
+) {
+  const rawPayload = { ...(req.query || {}), ...(req.body || {}) };
+  const { uniqueId, nickname } = extractUserIdentity(rawPayload);
+  const profilePictureUrl = extractProfilePicture(rawPayload, uniqueId || nickname);
+  const eventType = String(
+    rawPayload.type || rawPayload.eventType || rawPayload.event_type || ''
+  ).toLowerCase();
+
+  // Check if it's a gift event
+  if (
+    eventType === 'gift' ||
+    rawPayload.giftName ||
+    rawPayload.gift_name ||
+    rawPayload.giftId ||
+    rawPayload.diamondCount
+  ) {
+    const giftName = String(
+      rawPayload.giftName || rawPayload.gift_name || rawPayload.gift?.name || 'Gift'
+    ).trim();
+    const diamondCount =
+      Number(rawPayload.diamondCount ?? rawPayload.diamonds ?? rawPayload.gift?.diamondCount) || 1;
+    const repeatCount = Number(rawPayload.repeatCount ?? rawPayload.repeat_count ?? rawPayload.count) || 1;
+    io.emit('gift-event', {
+      uniqueId,
+      nickname,
+      giftName,
+      diamondCount,
+      repeatCount,
+      repeatEnd: true,
+      profilePictureUrl,
     });
-    res.json({ ok: true, provider: 'tiktok', type: 'chat' });
+    res.json({ ok: true, provider, type: 'gift', uniqueId, nickname, profilePictureUrl });
     return;
   }
-  res.status(400).json({ error: 'Missing chat comment' });
-});
 
-app.post('/api/tikfinity/event', (req, res) => {
-  const body = req.body || {};
-  const comment = String(body.comment || body.message || body.text || '').trim();
-  const nickname = String(body.nickname || body.name || 'Tikfinity Viewer').trim();
-  const uniqueId = String(body.uniqueId || body.username || nickname.toLowerCase().replace(/\s+/g, '_')).trim();
-  const profilePictureUrl = String(body.profilePictureUrl || body.avatar || '').trim();
+  // Check if it's a like event
+  if (eventType === 'like' || rawPayload.likeCount || rawPayload.like_count) {
+    const likeCount = Number(rawPayload.likeCount ?? rawPayload.like_count ?? rawPayload.count) || 1;
+    const totalLikeCount = Number(rawPayload.totalLikeCount ?? rawPayload.total) || likeCount;
+    io.emit('like-event', {
+      uniqueId,
+      nickname,
+      likeCount,
+      totalLikeCount,
+      profilePictureUrl,
+    });
+    res.json({ ok: true, provider, type: 'like', uniqueId, nickname, profilePictureUrl });
+    return;
+  }
 
+  // Otherwise process as a chat message
+  const comment = extractCommentText(rawPayload);
   if (comment) {
     io.emit('chat-message', {
       uniqueId,
@@ -283,38 +560,37 @@ app.post('/api/tikfinity/event', (req, res) => {
       comment,
       profilePictureUrl,
     });
-    res.json({ ok: true, provider: 'tikfinity', type: 'chat' });
-    return;
-  }
-  res.status(400).json({ error: 'Missing chat message' });
-});
-
-app.post('/api/bettertok/event', (req, res) => {
-  const body = req.body || {};
-  const comment = String(body.message || body.text || body.comment || body.content || '').trim();
-  const userObj = body.user || body.sender || {};
-  const nickname = String(userObj.nickname || userObj.name || body.nickname || 'BetterTok Viewer').trim();
-  const uniqueId = String(userObj.uniqueId || userObj.username || body.uniqueId || nickname.toLowerCase().replace(/\s+/g, '_')).trim();
-  const profilePictureUrl = String(userObj.profilePictureUrl || userObj.avatar || body.profilePictureUrl || '').trim();
-
-  if (comment) {
-    io.emit('chat-message', {
+    res.json({
+      ok: true,
+      provider,
+      type: 'chat',
       uniqueId,
       nickname,
       comment,
       profilePictureUrl,
     });
-    res.json({ ok: true, provider: 'bettertok', type: 'chat' });
     return;
   }
-  res.status(400).json({ error: 'Missing chat message' });
-});
+
+  res.status(400).json({ error: 'Missing chat comment or event payload' });
+}
+
+// REST webhook endpoints (supporting both POST and GET for Tikfinity, BetterTok, and TikTok relays)
+app.post('/api/tiktok/event', (req, res) => handleWebhookEvent('tiktok', req, res));
+app.get('/api/tiktok/event', (req, res) => handleWebhookEvent('tiktok', req, res));
+
+app.post('/api/tikfinity/event', (req, res) => handleWebhookEvent('tikfinity', req, res));
+app.get('/api/tikfinity/event', (req, res) => handleWebhookEvent('tikfinity', req, res));
+
+app.post('/api/bettertok/event', (req, res) => handleWebhookEvent('bettertok', req, res));
+app.get('/api/bettertok/event', (req, res) => handleWebhookEvent('bettertok', req, res));
 
 app.get('/api/tiktok/status', (_req, res) => {
   res.json({
-    connected: Boolean(tiktokConn && currentConnectedUsername),
+    connected: Boolean(tiktokConn || currentConnectedUsername),
     username: currentConnectedUsername || '',
     roomId: currentRoomId || '',
+    provider: currentProvider,
   });
 });
 

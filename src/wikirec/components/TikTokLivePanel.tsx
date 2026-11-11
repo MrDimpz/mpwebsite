@@ -44,27 +44,27 @@ const SAMPLE_TIKTOK_VIEWERS = [
   {
     uniqueId: 'lexi_wordsmith',
     nickname: 'Lexi Wordsmith',
-    profilePictureUrl: '',
+    profilePictureUrl: 'https://i.pravatar.cc/150?u=lexi_wordsmith',
   },
   {
     uniqueId: 'boggle_king99',
     nickname: 'BoggleKing',
-    profilePictureUrl: '',
+    profilePictureUrl: 'https://i.pravatar.cc/150?u=boggle_king99',
   },
   {
     uniqueId: 'wiki_hunter_tt',
     nickname: 'WikiHunter',
-    profilePictureUrl: '',
+    profilePictureUrl: 'https://i.pravatar.cc/150?u=wiki_hunter_tt',
   },
   {
     uniqueId: 'nova_starlight',
     nickname: 'Nova Starlight',
-    profilePictureUrl: '',
+    profilePictureUrl: 'https://i.pravatar.cc/150?u=nova_starlight',
   },
   {
     uniqueId: 'puzzle_champ',
     nickname: 'PuzzleChamp',
-    profilePictureUrl: '',
+    profilePictureUrl: 'https://i.pravatar.cc/150?u=puzzle_champ',
   },
 ];
 
@@ -141,6 +141,20 @@ export const TikTokLivePanel: React.FC<TikTokLivePanelProps> = ({
 
   const socketRef = useRef<Socket | null>(null);
   const onConnChangeRef = useRef(onConnectionStateChange);
+  const activityLogRef = useRef<HTMLDivElement | null>(null);
+  const activityLogBottomRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const scrollToLatest = () => {
+      if (activityLogRef.current) {
+        activityLogRef.current.scrollTop = activityLogRef.current.scrollHeight;
+      }
+      activityLogBottomRef.current?.scrollIntoView({ block: 'end' });
+    };
+    scrollToLatest();
+    const rafId = requestAnimationFrame(scrollToLatest);
+    return () => cancelAnimationFrame(rafId);
+  }, [chatItems, chatItems.length, socketFeed.length, isOpen]);
 
   useEffect(() => {
     onConnChangeRef.current = onConnectionStateChange;
@@ -803,40 +817,59 @@ export const TikTokLivePanel: React.FC<TikTokLivePanelProps> = ({
             <h3 className="text-sm font-semibold text-slate-200">
               03. Live Stream & Multiplayer Activity Log
             </h3>
-            <div className="max-h-56 overflow-y-auto space-y-1.5 pr-1">
+            <div ref={activityLogRef} className="max-h-56 overflow-y-auto space-y-1.5 pr-1">
               {socketFeed.length === 0 && chatItems.length === 0 ? (
                 <div className="text-xs text-slate-500 py-4 text-center">
                   No events yet. Connect a TikTok stream or use the Simulate / Debug panel above!
                 </div>
               ) : (
-                [...chatItems].reverse().map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center justify-between text-xs py-1.5 border-b border-slate-800/60"
-                  >
-                    <div className="truncate pr-2">
-                      <span className="font-semibold text-slate-200">
-                        {item.platform === 'tiktok' ? `@${item.username}` : item.displayName}
-                      </span>
-                      <span className="mx-1.5 text-slate-600">·</span>
-                      <span className="font-mono text-slate-300">{item.comment}</span>
-                    </div>
-                    <div className="text-right font-mono tabular-nums whitespace-nowrap shrink-0">
-                      {item.points && item.points > 0 ? (
-                        <span className="text-emerald-400 font-semibold">
-                          +{item.points.toLocaleString()} pts
+                chatItems.map((item) => {
+                  const cleanNick = (item.displayName || item.username || 'Viewer').replace(/^@+/, '');
+                  const pfp =
+                    item.profileImage && item.profileImage.startsWith('http')
+                      ? item.profileImage
+                      : `https://i.pravatar.cc/150?u=${encodeURIComponent(item.username || cleanNick)}`;
+                  return (
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-between text-xs py-1.5 border-b border-slate-800/60 gap-2"
+                    >
+                      <div className="flex items-center gap-2 min-w-0 pr-2">
+                        <img
+                          src={pfp}
+                          alt={cleanNick}
+                          referrerPolicy="no-referrer"
+                          onError={(e) => {
+                            const target = e.currentTarget;
+                            const fallback = `https://i.pravatar.cc/150?u=${encodeURIComponent(item.username || cleanNick)}`;
+                            if (target.src !== fallback) target.src = fallback;
+                          }}
+                          className="w-5 h-5 rounded-full object-cover shrink-0 border border-slate-700"
+                        />
+                        <span className="font-semibold text-slate-200 truncate">
+                          {cleanNick}
                         </span>
-                      ) : item.eventType === 'like' ? (
-                        <span className="text-rose-400">Like</span>
-                      ) : item.eventType === 'gift' ? (
-                        <span className="text-amber-400">Gift</span>
-                      ) : (
-                        <span className="text-slate-500">{item.guessResult || 'chat'}</span>
-                      )}
+                        <span className="text-slate-600 shrink-0">·</span>
+                        <span className="font-mono text-slate-300 truncate">{item.comment}</span>
+                      </div>
+                      <div className="text-right font-mono tabular-nums whitespace-nowrap shrink-0">
+                        {item.points && item.points > 0 ? (
+                          <span className="text-emerald-400 font-semibold">
+                            +{item.points.toLocaleString()} pts
+                          </span>
+                        ) : item.eventType === 'like' ? (
+                          <span className="text-rose-400">Like</span>
+                        ) : item.eventType === 'gift' ? (
+                          <span className="text-amber-400">Gift</span>
+                        ) : (
+                          <span className="text-slate-500">{item.guessResult || 'chat'}</span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
+              <div ref={activityLogBottomRef} />
             </div>
           </div>
         </div>

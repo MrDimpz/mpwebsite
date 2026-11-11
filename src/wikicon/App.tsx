@@ -389,12 +389,20 @@ export function App() {
       }) => {
         recordActivity();
         const rawComment = String(data.comment || '');
+        const cleanUniqueId = (data.uniqueId || 'viewer').replace(/^@+/, '');
+        const cleanNickname = (data.nickname || cleanUniqueId || 'Viewer').replace(/^@+/, '');
+        const rawPfp = (data.profilePictureUrl || '').trim();
+        const normalizedPfp = rawPfp.startsWith('//') ? `https:${rawPfp}` : rawPfp;
+        const validPfp = normalizedPfp.startsWith('http')
+          ? normalizedPfp
+          : `https://i.pravatar.cc/150?u=${encodeURIComponent(cleanUniqueId || cleanNickname)}`;
+
         const msg: TikTokChatMessage = {
           id: `chat_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-          uniqueId: data.uniqueId || 'viewer',
-          nickname: data.nickname || data.uniqueId || 'Viewer',
+          uniqueId: cleanUniqueId,
+          nickname: cleanNickname,
           comment: rawComment,
-          profilePictureUrl: data.profilePictureUrl || '',
+          profilePictureUrl: validPfp,
           timestamp: Date.now(),
         };
         // Append all chat messages (even if not part of puzzle, multi-word, or numbers)
@@ -408,7 +416,7 @@ export function App() {
               soundFX.playWordHit('UNCOMMON');
               setRound(serializeWikiconRound(internalRoundRef.current));
               showToast(
-                `@${msg.uniqueId} triggered !hint → "${hintWord.toUpperCase()}"`,
+                `${msg.nickname} triggered !hint → "${hintWord.toUpperCase()}"`,
                 'gold'
               );
             }
@@ -430,7 +438,7 @@ export function App() {
             if (ann && ann.id !== prevAnnouncementId) {
               soundFX.playWordHit(ann.rarity);
               showToast(
-                `@${msg.uniqueId} uncovered "${ann.word}" (#${ann.rank} · +${ann.pointsEarned.toLocaleString()} pts)`,
+                `${msg.nickname} uncovered "${ann.word}" (#${ann.rank} · +${ann.pointsEarned.toLocaleString()} pts)`,
                 ann.rarity === 'TITLE' ? 'gold' : 'green'
               );
             } else {
@@ -778,23 +786,25 @@ export function App() {
     sizeClasses: string,
     borderClasses: string
   ) => {
-    const initials = (displayName || 'VW').slice(0, 2).toUpperCase();
-    if (avatarUrlOrInitials && avatarUrlOrInitials.startsWith('http')) {
-      return (
-        <img
-          src={avatarUrlOrInitials}
-          alt={displayName}
-          referrerPolicy="no-referrer"
-          className={`${sizeClasses} rounded-full object-cover ${borderClasses}`}
-        />
-      );
-    }
+    const cleanName = (displayName || 'Player').replace(/^@+/, '');
+    const fallbackUrl = `https://i.pravatar.cc/150?u=${encodeURIComponent(cleanName)}`;
+    const src =
+      avatarUrlOrInitials && avatarUrlOrInitials.startsWith('http')
+        ? avatarUrlOrInitials
+        : fallbackUrl;
     return (
-      <div
-        className={`${sizeClasses} rounded-full bg-[#03142f] ${borderClasses} flex items-center justify-center font-extrabold`}
-      >
-        {initials}
-      </div>
+      <img
+        src={src}
+        alt={cleanName}
+        referrerPolicy="no-referrer"
+        onError={(e) => {
+          const target = e.currentTarget;
+          if (target.src !== fallbackUrl) {
+            target.src = fallbackUrl;
+          }
+        }}
+        className={`${sizeClasses} rounded-full object-cover ${borderClasses}`}
+      />
     );
   };
 

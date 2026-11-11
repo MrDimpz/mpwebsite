@@ -323,6 +323,40 @@ export const TikTokConnectModal: React.FC<TikTokConnectModalProps> = ({
               </p>
             </div>
 
+            {/* Chat Integration Configuration Panel (Tikfinity / BetterTok) */}
+            <div className="p-3 rounded-xl bg-black/40 border border-white/10 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-[#E6BE5A]">Chat Integration Provider</span>
+                <div className="flex items-center gap-1 p-0.5 bg-black/50 rounded-lg border border-white/10">
+                  <button
+                    type="button"
+                    onClick={() => handleProviderChange('tikfinity')}
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors cursor-pointer ${
+                      chatProvider === 'tikfinity'
+                        ? 'bg-[#F6C915] text-[#1D0830]'
+                        : 'text-[#D6CBE2] hover:text-white'
+                    }`}
+                  >
+                    Tikfinity
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleProviderChange('bettertok')}
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors cursor-pointer ${
+                      chatProvider === 'bettertok'
+                        ? 'bg-[#F6C915] text-[#1D0830]'
+                        : 'text-[#D6CBE2] hover:text-white'
+                    }`}
+                  >
+                    BetterTok
+                  </button>
+                </div>
+              </div>
+              <div className="text-[10px] font-mono text-[#B9A8CC] truncate">
+                Webhook: {typeof window !== 'undefined' ? window.location.origin : ''}/api/{chatProvider}/event
+              </div>
+            </div>
+
             <button
               type="submit"
               disabled={verifyingAuth}

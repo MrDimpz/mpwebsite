@@ -317,17 +317,21 @@ export const PauseOrVictoryModal: React.FC<PauseOrVictoryModalProps> = ({
                   <span className="absolute -top-2 -left-2 z-10 w-5 h-5 rounded-full bg-slate-300 text-[#12031F] font-black text-[10px] flex items-center justify-center shadow">
                     2nd
                   </span>
-                  {p2.profilePictureUrl ? (
-                    <img
-                      src={p2.profilePictureUrl}
-                      alt={p2.nickname}
-                      className="w-10 h-10 rounded-full object-cover border-2 border-slate-300 shadow-md"
-                    />
-                  ) : (
-                    <div className="w-10 h-10 rounded-full bg-slate-700 border-2 border-slate-300 flex items-center justify-center font-bold text-slate-200 text-xs shadow-md">
-                      {p2.nickname.slice(0, 2).toUpperCase()}
-                    </div>
-                  )}
+                  <img
+                    src={
+                      p2.profilePictureUrl && p2.profilePictureUrl.startsWith('http')
+                        ? p2.profilePictureUrl
+                        : `https://i.pravatar.cc/150?u=${encodeURIComponent(p2.id || p2.nickname)}`
+                    }
+                    alt={p2.nickname}
+                    referrerPolicy="no-referrer"
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      const fallback = `https://i.pravatar.cc/150?u=${encodeURIComponent(p2.id || p2.nickname)}`;
+                      if (target.src !== fallback) target.src = fallback;
+                    }}
+                    className="w-10 h-10 rounded-full object-cover border-2 border-slate-300 shadow-md"
+                  />
                 </div>
                 <div className="font-bold text-xs text-slate-100 truncate w-full px-0.5">{p2.nickname}</div>
                 <div className="font-mono font-bold text-xs text-slate-300 tabular-nums">{p2.score} pts</div>
@@ -349,17 +353,21 @@ export const PauseOrVictoryModal: React.FC<PauseOrVictoryModalProps> = ({
                   <span className="absolute -bottom-1 -right-1 z-10 w-5 h-5 rounded-full bg-[#F6C915] text-[#12031F] font-black text-[10px] flex items-center justify-center shadow-lg border border-amber-900">
                     1st
                   </span>
-                  {p1.profilePictureUrl ? (
-                    <img
-                      src={p1.profilePictureUrl}
-                      alt={p1.nickname}
-                      className="w-12 h-12 rounded-full object-cover border-2 border-[#F6C915] shadow-lg ring-2 ring-[#F6C915]/50"
-                    />
-                  ) : (
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#F6C915] to-[#D49B27] border-2 border-[#F6C915] flex items-center justify-center font-black text-[#12031F] text-sm shadow-lg">
-                      {p1.nickname.slice(0, 2).toUpperCase()}
-                    </div>
-                  )}
+                  <img
+                    src={
+                      p1.profilePictureUrl && p1.profilePictureUrl.startsWith('http')
+                        ? p1.profilePictureUrl
+                        : `https://i.pravatar.cc/150?u=${encodeURIComponent(p1.id || p1.nickname)}`
+                    }
+                    alt={p1.nickname}
+                    referrerPolicy="no-referrer"
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      const fallback = `https://i.pravatar.cc/150?u=${encodeURIComponent(p1.id || p1.nickname)}`;
+                      if (target.src !== fallback) target.src = fallback;
+                    }}
+                    className="w-12 h-12 rounded-full object-cover border-2 border-[#F6C915] shadow-lg ring-2 ring-[#F6C915]/50"
+                  />
                 </div>
                 <div className="font-extrabold text-xs text-[#FFF3B0] truncate w-full px-0.5 tracking-tight">{p1.nickname}</div>
                 <div className="font-mono font-black text-sm text-[#F6C915] tabular-nums">{p1.score} pts</div>
@@ -378,17 +386,21 @@ export const PauseOrVictoryModal: React.FC<PauseOrVictoryModalProps> = ({
                   <span className="absolute -top-2 -right-2 z-10 w-5 h-5 rounded-full bg-amber-700 text-amber-100 font-black text-[10px] flex items-center justify-center shadow">
                     3rd
                   </span>
-                  {p3.profilePictureUrl ? (
-                    <img
-                      src={p3.profilePictureUrl}
-                      alt={p3.nickname}
-                      className="w-10 h-10 rounded-full object-cover border-2 border-amber-600 shadow-md"
-                    />
-                  ) : (
-                    <div className="w-10 h-10 rounded-full bg-amber-900 border-2 border-amber-600 flex items-center justify-center font-bold text-amber-200 text-xs shadow-md">
-                      {p3.nickname.slice(0, 2).toUpperCase()}
-                    </div>
-                  )}
+                  <img
+                    src={
+                      p3.profilePictureUrl && p3.profilePictureUrl.startsWith('http')
+                        ? p3.profilePictureUrl
+                        : `https://i.pravatar.cc/150?u=${encodeURIComponent(p3.id || p3.nickname)}`
+                    }
+                    alt={p3.nickname}
+                    referrerPolicy="no-referrer"
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      const fallback = `https://i.pravatar.cc/150?u=${encodeURIComponent(p3.id || p3.nickname)}`;
+                      if (target.src !== fallback) target.src = fallback;
+                    }}
+                    className="w-10 h-10 rounded-full object-cover border-2 border-amber-600 shadow-md"
+                  />
                 </div>
                 <div className="font-bold text-xs text-amber-100 truncate w-full px-0.5">{p3.nickname}</div>
                 <div className="font-mono font-bold text-xs text-amber-300 tabular-nums">{p3.score} pts</div>

@@ -392,18 +392,23 @@ export default function App() {
         showToast: toastFn,
       } = puzzleStateRef.current;
 
-      const uniqueId = data.uniqueId || 'viewer';
+      const uniqueId = (data.uniqueId || 'viewer').replace(/^@+/, '');
       const cleanNick = (data.nickname || uniqueId).replace(/^@+/, '') || 'Player';
       const rawComment = (data.comment || '').trim();
       if (!rawComment) return;
       const lowerComment = rawComment.toLowerCase();
-      const pfp = data.profilePictureUrl || '';
+      const rawPfp = (data.profilePictureUrl || '').trim();
+      const normalizedPfp = rawPfp.startsWith('//') ? `https:${rawPfp}` : rawPfp;
+      const pfp = normalizedPfp.startsWith('http')
+        ? normalizedPfp
+        : `https://i.pravatar.cc/150?u=${encodeURIComponent(uniqueId || cleanNick)}`;
 
       // Support chat commands !rotate and !hint
       if (lowerComment === '!rotate' || lowerComment === 'rotate') {
         rotateFn();
         toastFn(`${cleanNick} rotated the board!`, 'purple', '90° Clockwise', pfp);
         setLiveFeed((prev) => [
+          ...prev.slice(-99),
           {
             id: `${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
             type: 'chat',
@@ -414,7 +419,6 @@ export default function App() {
             isCommand: true,
             timestamp: Date.now(),
           },
-          ...prev.slice(0, 49),
         ]);
         return;
       }
@@ -422,6 +426,7 @@ export default function App() {
       if (lowerComment === '!hint' || lowerComment === 'hint') {
         hintFn();
         setLiveFeed((prev) => [
+          ...prev.slice(-99),
           {
             id: `${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
             type: 'chat',
@@ -432,7 +437,6 @@ export default function App() {
             isCommand: true,
             timestamp: Date.now(),
           },
-          ...prev.slice(0, 49),
         ]);
         return;
       }
@@ -622,6 +626,7 @@ export default function App() {
       }
 
       setLiveFeed((prev) => [
+        ...prev.slice(-99),
         {
           id: `${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
           type: 'chat',
@@ -633,7 +638,6 @@ export default function App() {
           matchedPoints,
           timestamp: Date.now(),
         },
-        ...prev.slice(0, 49),
       ]);
     },
     []
@@ -1326,7 +1330,7 @@ export default function App() {
       </div>
 
       {/* Main Playfield Split Layout */}
-      <main className="flex-1 min-h-0 max-w-7xl w-full mx-auto px-3 sm:px-6 py-2.5 sm:py-4 grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5 items-stretch">
+      <main className="flex-1 min-h-0 max-w-7xl w-full mx-auto px-3 sm:px-6 py-2.5 sm:py-4 grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5 items-stretch overflow-hidden">
         {/* Left/Center Column: Active Word Readout + Tactile Grid + Action Bar */}
         <section
           className={`${
@@ -1495,7 +1499,7 @@ export default function App() {
         <section
           className={`${
             isLiveConnected ? 'lg:col-span-7 xl:col-span-7' : 'lg:col-span-6 xl:col-span-6'
-          } min-h-0 flex flex-col ${
+          } h-full min-h-0 overflow-hidden flex flex-col ${
             mobileTab === 'board' ? 'hidden lg:flex' : 'flex'
           }`}
         >

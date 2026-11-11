@@ -167,16 +167,22 @@ export const TikTokLeaderboardPanel: React.FC<TikTokLeaderboardPanelProps> = ({
 
   // Auto-scroll chat feed to newest event at bottom
   const chatScrollContainerRef = useRef<HTMLDivElement>(null);
-  const isAutoScrollPausedRef = useRef(false);
+  const chatBottomAnchorRef = useRef<HTMLDivElement>(null);
 
   // Filter to actual chat comments only (ignoring any likes, gifts, or telemetry)
   const chatMessages = liveFeed.filter((item) => item && item.type === 'chat' && item.comment?.trim());
 
   useEffect(() => {
-    if (!isAutoScrollPausedRef.current && chatScrollContainerRef.current) {
-      chatScrollContainerRef.current.scrollTop = chatScrollContainerRef.current.scrollHeight;
-    }
-  }, [chatMessages]);
+    const scrollToLatest = () => {
+      if (chatScrollContainerRef.current) {
+        chatScrollContainerRef.current.scrollTop = chatScrollContainerRef.current.scrollHeight;
+      }
+      chatBottomAnchorRef.current?.scrollIntoView({ block: 'end' });
+    };
+    scrollToLatest();
+    const rafId = requestAnimationFrame(scrollToLatest);
+    return () => cancelAnimationFrame(rafId);
+  }, [chatMessages.length, liveFeed, mobileTab]);
 
   const handleSendChat = (commentText?: string) => {
     const text = (commentText ?? chatInput).trim();
@@ -400,9 +406,8 @@ export const TikTokLeaderboardPanel: React.FC<TikTokLeaderboardPanelProps> = ({
                 </div>
               </div>
             ) : (
-              gameAnswers.slice(0, 10).map((ans, index) => {
+              gameAnswers.map((ans, index) => {
                 const rank = index + 1;
-                const isFirst = rank === 1;
                 const displayNickname = ans.nickname.replace(/^@+/, '') || 'Player';
                 const pfp =
                   ans.profilePictureUrl && ans.profilePictureUrl.startsWith('http')
@@ -492,13 +497,7 @@ export const TikTokLeaderboardPanel: React.FC<TikTokLeaderboardPanelProps> = ({
           {/* Scrollable Live Chat Feed (Clean Authentic Stream Chat Layout) */}
           <div
             ref={chatScrollContainerRef}
-            onScroll={(e) => {
-              const target = e.currentTarget;
-              const isNearBottom =
-                target.scrollHeight - target.scrollTop - target.clientHeight < 60;
-              isAutoScrollPausedRef.current = !isNearBottom;
-            }}
-            className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-1.5 font-sans"
+            className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-3 space-y-1.5 font-sans"
           >
             {chatMessages.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center p-4 space-y-2.5 my-auto">
@@ -574,6 +573,7 @@ export const TikTokLeaderboardPanel: React.FC<TikTokLeaderboardPanelProps> = ({
                 );
               })
             )}
+            <div ref={chatBottomAnchorRef} />
           </div>
 
           {/* Quick Chat Input Bar */}
