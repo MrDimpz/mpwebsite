@@ -9,24 +9,27 @@
     --accent: 43 88% 58%; --accent-foreground: 288 50% 14%; --destructive: 0 72% 48%; --destructive-foreground: 0 0% 100%;
     --border: 285 12% 82%; --input: 285 12% 82%; --ring: 288 50% 14%; --radius: 1rem;
     --paper: #faf8f4; --ink: #381044; --yellow: #e9bc47; --quiet: #6b5e69; --line: #ded5db;
-    --font-display: 'Fraunces', 'Outfit', Georgia, serif;
-    --font-sans: 'Plus Jakarta Sans', 'Space Grotesk', sans-serif;
+    --font-display: 'Fraunces', Georgia, serif;
+    --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
-    --bg-canvas: #F6F4FA;
-    --bg-card: #FFFFFF;
-    --bg-subtle: #F2EEF8;
-    --border-card: #E2DCEB;
+
+    /* Default: Logo Theme (Royal Purple & Metallic Gold from "The Missing Piece" Logo) - Light */
+    --bg-canvas: #E0D3F5;
+    --bg-card: rgba(243, 237, 252, 0.94);
+    --bg-subtle: #D8C7F1;
+    --border-card: #C3AFE5;
     --brand-primary: #4A1259;
     --brand-primary-hover: #360B42;
     --brand-accent: #B45309;
     --brand-gold: #EAB308;
     --brand-text: #4A1259;
-    --brand-soft-bg: rgba(74, 18, 89, 0.06);
-    --brand-soft-border: rgba(74, 18, 89, 0.30);
+    --brand-soft-bg: rgba(74, 18, 89, 0.12);
+    --brand-soft-border: rgba(74, 18, 89, 0.38);
   }
   html.dark {
+    /* Default: Logo Theme (Royal Purple & Metallic Gold) - Dark */
     --bg-canvas: #11081A;
-    --bg-card: #1B0E26;
+    --bg-card: rgba(27, 14, 38, 0.94);
     --bg-subtle: #13091D;
     --border-card: #331C4A;
     --brand-primary: #6B21A8;
@@ -38,8 +41,9 @@
     --brand-soft-border: rgba(245, 196, 39, 0.40);
   }
   html.theme-classic {
+    /* Classic Theme (Forest Emerald & Warm Alabaster) - Light */
     --bg-canvas: #F7F6F2;
-    --bg-card: #FFFFFF;
+    --bg-card: rgba(255, 255, 255, 0.96);
     --bg-subtle: #FAF9F5;
     --border-card: #E7E5E4;
     --brand-primary: #0F5132;
@@ -51,8 +55,9 @@
     --brand-soft-border: rgba(15, 81, 50, 0.30);
   }
   html.dark.theme-classic {
+    /* Classic Theme - Dark */
     --bg-canvas: #0E1015;
-    --bg-card: #18181B;
+    --bg-card: rgba(24, 24, 27, 0.96);
     --bg-subtle: #09090B;
     --border-card: #27272A;
     --brand-primary: #0F5132;
@@ -65,7 +70,42 @@
   }
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; scroll-padding-top: 30px; }
-  body { margin: 0; background: var(--paper); color: var(--ink); font-family: 'Space Grotesk', sans-serif; overflow-x: clip; }
+  body {
+    margin: 0;
+    background-color: var(--bg-canvas);
+    color: #18181B;
+    font-family: var(--font-sans);
+    transition: background-color 150ms ease, color 150ms ease;
+    position: relative;
+    min-height: 100vh;
+    overflow-x: clip;
+  }
+  /* Tiled Logo Background Pattern at 25% opacity */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    z-index: 0;
+    background-image: url('/assets/aistudio/3d_logo_944e5372.png');
+    background-repeat: repeat;
+    background-size: 84px 84px;
+    opacity: 0.25;
+  }
+  html.dark body {
+    background-color: var(--bg-canvas);
+    color: #F4F4F5;
+  }
+  .mp-site {
+    position: relative;
+    z-index: 1;
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+  }
   button, a { -webkit-tap-highlight-color: transparent; }
   button { font: inherit; cursor: pointer; }
   a { text-decoration: none; color: inherit; }

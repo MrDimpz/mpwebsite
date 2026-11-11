@@ -1,4 +1,18 @@
+# Proper MIME types for video, audio, and image assets on Hostinger/Apache
+AddType video/mp4 .mp4
+AddType video/webm .webm
+AddType video/ogg .ogv
+AddType image/svg+xml .svg
+AddType image/png .png
+AddType image/jpeg .jpg .jpeg
+
 <IfModule mod_headers.c>
+  # Enable byte-range streaming for video seeking and smooth HTML5 playback
+  <FilesMatch "\.(mp4|webm|ogv)$">
+    Header set Accept-Ranges bytes
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+
   <FilesMatch "\.(html|htm|php|js|css)$">
     Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
     Header set Pragma "no-cache"

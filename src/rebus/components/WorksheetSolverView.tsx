@@ -436,7 +436,7 @@ export const WorksheetSolverView: React.FC<WorksheetSolverViewProps> = ({
                 alt={`${activeSheet.title} page ${idx + 1}`}
                 referrerPolicy="no-referrer"
                 onClick={() => setZoomSheet((prev) => !prev)}
-                className={`rounded-lg border border-[var(--border-card)] bg-white cursor-zoom-in transition-all duration-150 ${
+                className={`rounded-lg border border-[var(--border-card)] bg-[var(--bg-card)] cursor-zoom-in transition-all duration-150 ${
                   zoomSheet ? 'max-w-none w-[140%]' : 'w-full h-auto object-contain'
                 }`}
               />
@@ -580,44 +580,11 @@ export const WorksheetSolverView: React.FC<WorksheetSolverViewProps> = ({
                   <div className="mt-2.5 pt-2.5 border-t border-[var(--border-card)] text-xs text-stone-600 dark:text-zinc-400 space-y-1">
                     {showClue && !isSolved && !isRevealed && (
                       <p>
-                        <strong className="text-stone-800 dark:text-zinc-200">Hint:</strong>{' '}
-                        First letters:{' '}
+                        <strong className="text-stone-800 dark:text-zinc-200">Clue:</strong>{' '}
+                        {item.clue} · First letters:{' '}
                         <span className="font-mono font-semibold text-stone-900 dark:text-zinc-100">
                           {item.firstLetters}
-                        </span>{' '}
-                        · Bookends &amp; vowels:{' '}
-                        <span className="font-mono font-semibold text-stone-900 dark:text-zinc-100">
-                          {item.answer
-                            .trim()
-                            .split(/\s+/)
-                            .map((w) => {
-                              const chars = w.split('');
-                              const alphaIndices = chars
-                                .map((ch, idx) => (/[a-zA-Z0-9]/.test(ch) ? idx : -1))
-                                .filter((idx) => idx >= 0);
-                              const firstIdx = alphaIndices[0] ?? -1;
-                              const lastIdx = alphaIndices[alphaIndices.length - 1] ?? -1;
-                              return chars
-                                .map((ch, idx) => {
-                                  if (!/[a-zA-Z0-9]/.test(ch)) return ch;
-                                  if (
-                                    idx === firstIdx ||
-                                    idx === lastIdx ||
-                                    /[aeiouAEIOU]/.test(ch)
-                                  ) {
-                                    return ch.toUpperCase();
-                                  }
-                                  return '·';
-                                })
-                                .join('');
-                            })
-                            .join('  ')}
                         </span>
-                        {item.clue &&
-                          !/first\s+(letter|character)/i.test(item.clue) &&
-                          !/^[A-Z0-9](\s*,\s*[A-Z0-9])+$/i.test(item.clue.trim()) && (
-                            <> · {item.clue}</>
-                          )}
                       </p>
                     )}
                     {(isSolved || isRevealed) && item.explanation && (

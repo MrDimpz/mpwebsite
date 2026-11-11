@@ -34,17 +34,8 @@ import {
   Sun,
   Moon,
   Palette,
-  LogIn,
-  User as UserIcon,
+  Play,
 } from 'lucide-react';
-import { Link } from 'react-router';
-import {
-  useUnifiedAuth,
-  getCleanDisplayName,
-  saveUnifiedLeaderboardScore,
-} from '@/lib/unified-game-auth';
-import { UnifiedAuthModal } from '@/components/solo-games/unified-auth-modal';
-import { LoggedInIndicator } from '@/components/logged-in-indicator';
 
 type NavTab = 'play' | 'archive' | 'worksheets' | 'rules';
 type BrandTheme = 'logo' | 'classic';
@@ -93,119 +84,48 @@ const PUZZLE_CATEGORIES = [
   'Movies & Pop Culture',
 ];
 
-function isRedundantFirstLetterClue(text?: string): boolean {
-  if (!text) return true;
-  const trimmed = text.trim();
-  if (!trimmed) return true;
-  if (/first\s+(letter|character)/i.test(trimmed)) return true;
-  if (/^[A-Z0-9](\s*,\s*[A-Z0-9])+$/i.test(trimmed)) return true;
-  if (/^[A-Z0-9]$/i.test(trimmed)) return true;
-  return false;
-}
-
 function getHintTiers(puzzle: RebusChallenge) {
   const words = puzzle.answer.trim().split(/\s+/);
-
-  // Tier 1: Starting letter of each word
+  const wordLengths = words.map((w) => w.replace(/[^a-zA-Z0-9]/g, '').length);
   const firstLetters = words
     .map((w) => {
       const m = w.match(/[a-zA-Z0-9]/);
       return m ? `${m[0].toUpperCase()}...` : w;
     })
-    .join('  ');
-
-  // Tier 2: Bookends (First & Last letter of each word)
-  const bookends = words
-    .map((w) => {
-      const chars = w.split('');
-      const alphaIndices = chars
-        .map((ch, idx) => (/[a-zA-Z0-9]/.test(ch) ? idx : -1))
-        .filter((idx) => idx >= 0);
-      if (alphaIndices.length <= 1) return w.toUpperCase();
-      const firstIdx = alphaIndices[0];
-      const lastIdx = alphaIndices[alphaIndices.length - 1];
-      return chars
-        .map((ch, idx) => {
-          if (!/[a-zA-Z0-9]/.test(ch)) return ch;
-          if (idx === firstIdx || idx === lastIdx) return ch.toUpperCase();
-          return '·';
-        })
-        .join('');
-    })
-    .join('   ');
-
-  // Tier 3: Vowel Blueprint (First, Last, and all Vowels revealed)
+    .join(' ');
   const vowelsRevealed = words
-    .map((w) => {
-      const chars = w.split('');
-      const alphaIndices = chars
-        .map((ch, idx) => (/[a-zA-Z0-9]/.test(ch) ? idx : -1))
-        .filter((idx) => idx >= 0);
-      const firstIdx = alphaIndices[0] ?? -1;
-      const lastIdx = alphaIndices[alphaIndices.length - 1] ?? -1;
-      return chars
+    .map((w) =>
+      w
+        .split('')
         .map((ch, idx) => {
           if (!/[a-zA-Z0-9]/.test(ch)) return ch;
-          if (idx === firstIdx || idx === lastIdx || /[aeiouAEIOU]/.test(ch)) {
-            return ch.toUpperCase();
-          }
+          if (idx === 0 || /[aeiouAEIOU]/.test(ch)) return ch.toUpperCase();
           return '_';
         })
-        .join('');
-    })
+        .join('')
+    )
     .join('   ');
-
-  // Tier 4: Key Word / Rebus Wordplay Clue (never repeats Starting Letters)
-  const hasCustomBlogClue = !isRedundantFirstLetterClue(puzzle.blogClue);
-  const hasCustomExplanation =
-    Boolean(puzzle.explanation) &&
-    !/^The visual arrangement encodes/i.test(puzzle.explanation.trim()) &&
-    puzzle.explanation.trim().toLowerCase() !== puzzle.answer.trim().toLowerCase();
-
-  let tier4Content = '';
-  if (words.length > 1) {
-    // Pick the longest word (or middle/anchor word) to reveal as an anchor clue
-    const sortedByLength = [...words].sort(
-      (a, b) => b.replace(/[^a-zA-Z0-9]/g, '').length - a.replace(/[^a-zA-Z0-9]/g, '').length
-    );
-    const anchorWord = sortedByLength[0].replace(/[^a-zA-Z0-9']/g, '').toUpperCase();
-    tier4Content = `Anchor word in answer: "${anchorWord}"`;
-  } else {
-    const cleanSingle = words[0].replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-    const halfLen = Math.max(2, Math.ceil(cleanSingle.length / 2));
-    tier4Content = `Starts with "${cleanSingle.slice(0, halfLen)}..."`;
-  }
-
-  if (hasCustomBlogClue) {
-    tier4Content = `${puzzle.blogClue.trim()} · ${tier4Content}`;
-  } else if (hasCustomExplanation) {
-    // Sanitize explanation so it doesn't directly print "= Answer"
-    const sanitizedExp = puzzle.explanation
-      .replace(new RegExp(puzzle.answer, 'gi'), '___')
-      .trim();
-    tier4Content = `Visual breakdown: ${sanitizedExp} (${tier4Content})`;
-  }
 
   return [
     {
       tier: 1,
-      label: 'Starting Letters',
-      content: `First letter of each word: ${firstLetters}`,
+      label: 'Word Structure',
+      content: `${words.length} ${words.length === 1 ? 'word' : 'words'} — Letter lengths: (${wordLengths.join(', ')})`,
     },
     {
       tier: 2,
-      label: 'First & Last Letters',
-      content: `Word bookends: ${bookends}`,
+      label: 'Starting Letters',
+      content: `Starts with: ${firstLetters}`,
     },
     {
       tier: 3,
-      label: 'Vowel Blueprint',
-      content: `Vowels & bookends: ${vowelsRevealed}`,
+      label: 'Editorial Clue',
+      content: puzzle.blogClue || puzzle.explanation,
     },
     {
       tier: 4,
-      label: 'Key Word & Visual Clue',
-      content: tier4Content,
+      label: 'Vowel Blueprint',
+      content: `Pattern: ${vowelsRevealed}`,
     },
   ];
 }
@@ -307,52 +227,50 @@ export default function App() {
   const [sprintSeconds, setSprintSeconds] = useState<number>(0);
   const [sprintFinished, setSprintFinished] = useState<boolean>(false);
 
-  // Unified Solo Games Auth & Leaderboard Modal state
-  const { user: currentUser, authReady } = useUnifiedAuth();
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
-  const [authModalTab, setAuthModalTab] = useState<'account' | 'leaderboards'>('leaderboards');
-
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Save progress to localStorage & sync to unified Firestore leaderboard when signed in
+  // Intro Video Screen state
+  const [showIntroScreen, setShowIntroScreen] = useState<boolean>(true);
+  const [introVideoFinished, setIntroVideoFinished] = useState<boolean>(false);
+  const [introMuted, setIntroMuted] = useState<boolean>(true);
+  const introVideoRef = useRef<HTMLVideoElement>(null);
+
+  // Auto-trigger 12-second timer when intro screen is shown
+  useEffect(() => {
+    if (!showIntroScreen) return;
+    setIntroVideoFinished(false);
+    const timer = setTimeout(() => {
+      setIntroVideoFinished(true);
+    }, 12000);
+    return () => clearTimeout(timer);
+  }, [showIntroScreen]);
+
+  useEffect(() => {
+    if (!showIntroScreen || !introVideoRef.current) return;
+    const videoEl = introVideoRef.current;
+    videoEl.muted = introMuted;
+    const playPromise = videoEl.play();
+    if (playPromise !== undefined) {
+      playPromise.catch((err) => {
+        console.warn('Video autoplay muted fallback:', err);
+        videoEl.muted = true;
+        setIntroMuted(true);
+        videoEl.play().catch((e) => {
+          console.warn('Video play failed:', e);
+          setIntroVideoFinished(true);
+        });
+      });
+    }
+  }, [introMuted, showIntroScreen]);
+
+  // Save progress to localStorage
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
     } catch {
       // ignore
     }
-
-    if (authReady && currentUser && progress.score > 0) {
-      const solvedCount = Object.keys(progress.solvedIds).length;
-      saveUnifiedLeaderboardScore({
-        user: currentUser,
-        gameId: 'rebus',
-        puzzleId: 'rebus-archive',
-        puzzleTitle: '733 Rebus Archive',
-        score: progress.score,
-        metricLabel: `${progress.score.toLocaleString('en-GB')} pts`,
-        subMetricLabel: `${solvedCount} solved · Best streak ${progress.bestStreak}`,
-      }).catch(() => {});
-    }
-  }, [progress, authReady, currentUser]);
-
-  // Sync completed 5-Round Sprint score to unified Firestore leaderboard
-  useEffect(() => {
-    if (sprintFinished && sprintScore > 0 && authReady && currentUser) {
-      const mins = Math.floor(sprintSeconds / 60);
-      const rem = sprintSeconds % 60;
-      const timeStr = `${mins}:${rem < 10 ? '0' : ''}${rem}`;
-      saveUnifiedLeaderboardScore({
-        user: currentUser,
-        gameId: 'rebus',
-        puzzleId: 'rebus-sprint',
-        puzzleTitle: '5-Round Timed Sprint',
-        score: sprintScore,
-        metricLabel: `${sprintScore} pts`,
-        subMetricLabel: `5 rounds in ${timeStr}`,
-      }).catch(() => {});
-    }
-  }, [sprintFinished, sprintScore, sprintSeconds, authReady, currentUser]);
+  }, [progress]);
 
   // Sprint timer
   useEffect(() => {
@@ -600,80 +518,45 @@ export default function App() {
     });
   };
 
-  // Render masked answer slots synced with the 4-tier progressive hint system
+  // Render masked answer slots for Hint Tier 1+
   const renderLetterSlots = () => {
     const words = currentPuzzle.answer.split(' ');
-    const showFirstLetters = hintsUnlocked >= 1 || isSolved || isRevealed;
-    const showLastLetters = hintsUnlocked >= 2 || isSolved || isRevealed;
-    const showVowels = hintsUnlocked >= 3 || isSolved || isRevealed;
-    const showKeyWord = hintsUnlocked >= 4 || isSolved || isRevealed;
+    const showFirstLetters = hintsUnlocked >= 2 || isSolved || isRevealed;
+    const showVowels = hintsUnlocked >= 4 || isSolved || isRevealed;
     const showFull = isSolved || isRevealed;
-
-    const anchorWordUpper =
-      words.length > 1
-        ? [...words]
-            .sort(
-              (a, b) =>
-                b.replace(/[^a-zA-Z0-9]/g, '').length - a.replace(/[^a-zA-Z0-9]/g, '').length
-            )[0]
-            .replace(/[^a-zA-Z0-9']/g, '')
-            .toUpperCase()
-        : '';
 
     return (
       <div className="flex flex-wrap items-center justify-center gap-x-3 sm:gap-x-4 gap-y-2 py-2.5 px-2.5 sm:px-3 bg-[var(--bg-subtle)] rounded-xl border border-[var(--border-card)]">
-        {words.map((word, wIdx) => {
-          const chars = word.split('');
-          const alphaIndices = chars
-            .map((ch, idx) => (/[a-zA-Z0-9]/.test(ch) ? idx : -1))
-            .filter((idx) => idx >= 0);
-          const firstIdx = alphaIndices[0] ?? -1;
-          const lastIdx = alphaIndices[alphaIndices.length - 1] ?? -1;
-          const cleanWordUpper = word.replace(/[^a-zA-Z0-9']/g, '').toUpperCase();
-          const isAnchorWord = words.length > 1 && cleanWordUpper === anchorWordUpper;
-          const halfSingleLimit =
-            words.length === 1 ? Math.max(2, Math.ceil(alphaIndices.length / 2)) : 0;
-
-          return (
-            <div key={wIdx} className="flex items-center gap-1 flex-wrap justify-center">
-              {chars.map((char, cIdx) => {
-                const isAlphaNum = /[a-zA-Z0-9]/.test(char);
-                if (!isAlphaNum) {
-                  return (
-                    <span
-                      key={cIdx}
-                      className="font-mono text-xs sm:text-sm font-bold text-stone-400 px-0.5"
-                    >
-                      {char}
-                    </span>
-                  );
-                }
-                const isVowel = /[aeiouAEIOU]/.test(char);
-                const alphaPos = alphaIndices.indexOf(cIdx);
-                const shouldRevealChar =
-                  showFull ||
-                  (showFirstLetters && cIdx === firstIdx) ||
-                  (showLastLetters && cIdx === lastIdx) ||
-                  (showVowels && isVowel) ||
-                  (showKeyWord &&
-                    (isAnchorWord || (words.length === 1 && alphaPos < halfSingleLimit)));
-
+        {words.map((word, wIdx) => (
+          <div key={wIdx} className="flex items-center gap-1 flex-wrap justify-center">
+            {word.split('').map((char, cIdx) => {
+              const isAlphaNum = /[a-zA-Z0-9]/.test(char);
+              if (!isAlphaNum) {
                 return (
-                  <span
-                    key={cIdx}
-                    className={`w-5 h-6 sm:w-7 sm:h-8 rounded flex items-center justify-center font-mono text-xs sm:text-sm font-bold transition-all ${
-                      shouldRevealChar
-                        ? 'bg-[var(--brand-soft-bg)] text-[var(--brand-text)] border border-[var(--brand-soft-border)] shadow-2xs'
-                        : 'bg-[var(--bg-card)] text-stone-300 dark:text-stone-600 border border-[var(--border-card)]'
-                    }`}
-                  >
-                    {shouldRevealChar ? char.toUpperCase() : '_'}
+                  <span key={cIdx} className="font-mono text-xs sm:text-sm font-bold text-stone-400 px-0.5">
+                    {char}
                   </span>
                 );
-              })}
-            </div>
-          );
-        })}
+              }
+              const isVowel = /[aeiouAEIOU]/.test(char);
+              const shouldRevealChar =
+                showFull || (showFirstLetters && cIdx === 0) || (showVowels && isVowel);
+
+              return (
+                <span
+                  key={cIdx}
+                  className={`w-5 h-6 sm:w-7 sm:h-8 rounded flex items-center justify-center font-mono text-xs sm:text-sm font-bold transition-all ${
+                    shouldRevealChar
+                      ? 'bg-[var(--brand-soft-bg)] text-[var(--brand-text)] border border-[var(--brand-soft-border)] shadow-2xs'
+                      : 'bg-[var(--bg-card)] text-stone-300 dark:text-stone-600 border border-[var(--border-card)]'
+                  }`}
+                >
+                  {shouldRevealChar ? char.toUpperCase() : '_'}
+                </span>
+              );
+            })}
+          </div>
+        ))}
       </div>
     );
   };
@@ -698,19 +581,16 @@ export default function App() {
         <div className="max-w-6xl mx-auto px-3 sm:px-6">
           {/* Primary Row: Brand + Theme Controls + Sprint */}
           <div className="h-14 sm:h-16 flex items-center justify-between gap-1.5 sm:gap-4">
-            {/* Zone 1: Brand Wordmark + User 3D Logo Emblem */}
+            {/* Zone 1: Brand Wordmark + User 3D Logo Emblem + Back to Games */}
             <div className="flex items-center gap-2 min-w-0 shrink">
-              <Link
-                to="/solo-games"
+              <a
+                href="/solo-games"
+                className="inline-flex items-center gap-0.5 text-xs font-bold text-stone-600 dark:text-stone-300 hover:text-stone-900 dark:hover:text-white px-2 py-1 rounded-lg bg-[var(--bg-subtle)] border border-[var(--border-card)] transition-colors shrink-0"
                 title="Back to Solo Games"
-                className="shrink-0 hover:scale-105 transition-transform"
               >
-                <img
-                  src="/assets/aistudio/3d_logo_944e5372.png"
-                  alt="The Missing Piece Logo"
-                  className="w-7 h-7 sm:w-9 sm:h-9 rounded-full object-contain shrink-0 drop-shadow-xs"
-                />
-              </Link>
+                <ChevronLeft className="w-4 h-4" />
+                <span className="hidden sm:inline">Solo Games</span>
+              </a>
               <button
                 onClick={() => {
                   handleExitSprint();
@@ -718,6 +598,11 @@ export default function App() {
                 }}
                 className="text-left group flex items-center gap-2 min-w-0"
               >
+                <img
+                  src="/assets/aistudio/3d_logo_944e5372.png"
+                  alt="The Missing Piece Logo"
+                  className="w-7 h-7 sm:w-9 sm:h-9 rounded-full object-contain shrink-0 drop-shadow-xs"
+                />
                 <span className="font-serif text-sm sm:text-xl font-bold tracking-tight text-stone-900 dark:text-stone-100 group-hover:text-[var(--brand-text)] transition-colors truncate">
                   Puzzle a Day <span className="text-[var(--brand-gold)] font-normal">·</span> Rebus
                 </span>
@@ -725,7 +610,7 @@ export default function App() {
             </div>
 
             {/* Zone 2: Desktop Center Navigation Links */}
-            <nav className="hidden lg:flex items-center gap-6">
+            <nav className="hidden lg:flex items-center gap-5">
               <button
                 onClick={() => {
                   handleExitSprint();
@@ -780,9 +665,8 @@ export default function App() {
               </button>
             </nav>
 
-            {/* Zone 3: LoggedInIndicator + Logo Theme Toggle + Dark Mode Selection Slider + Sprint CTA */}
+            {/* Zone 3: Logo Theme Toggle + Dark Mode Selection Slider + Sprint CTA */}
             <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-              <LoggedInIndicator />
               <div className="hidden xl:flex items-center gap-3 text-xs font-mono text-stone-600 dark:text-stone-400">
                 <span title="Solved Main Game Puzzles">
                   Solved:{' '}
@@ -868,30 +752,9 @@ export default function App() {
                   className="px-2 sm:px-3 py-1.5 rounded-lg bg-[var(--brand-primary)] text-white text-xs font-medium hover:bg-[var(--brand-primary-hover)] transition-colors flex items-center gap-1 shadow-2xs shrink-0"
                 >
                   <Timer className="w-3.5 h-3.5 text-[var(--brand-gold)]" />
-                  <span className="hidden sm:inline">5-Round Sprint</span>
-                  <span className="sm:hidden">Sprint</span>
+                  <span>5-Round Sprint</span>
                 </button>
               )}
-
-              {/* Unified Leaderboard & Login Pop-up Button */}
-              <button
-                type="button"
-                onClick={() => {
-                  setAuthModalTab('leaderboards');
-                  setIsAuthModalOpen(true);
-                }}
-                className="px-2 sm:px-2.5 py-1.5 rounded-lg bg-[#2B0938] text-[#F6C915] border border-[#D4A437] text-xs font-bold hover:opacity-95 transition-opacity flex items-center gap-1.5 shrink-0 cursor-pointer"
-                title={
-                  currentUser
-                    ? `Leaderboards & Account (${getCleanDisplayName(currentUser)})`
-                    : 'View Rebus Leaderboard & Sign In'
-                }
-              >
-                <Trophy className="w-3.5 h-3.5" />
-                <span className="hidden md:inline">
-                  {currentUser ? getCleanDisplayName(currentUser).split(' ')[0] : 'Leaderboard'}
-                </span>
-              </button>
             </div>
           </div>
 
@@ -947,14 +810,14 @@ export default function App() {
                   : 'text-stone-500 dark:text-stone-400'
               }`}
             >
-              Rules
+              Rules & Stats
             </button>
           </div>
         </div>
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-6xl w-full mx-auto px-3 sm:px-6 py-4 sm:py-8">
+      <main className="relative z-10 flex-1 max-w-6xl w-full mx-auto px-3 sm:px-6 py-4 sm:py-8">
         {/* VIEW 1: PLAY MODE */}
         {activeTab === 'play' && (
           <div className="max-w-3xl mx-auto space-y-4 sm:space-y-6">
@@ -1167,9 +1030,9 @@ export default function App() {
                 <div className="bg-[var(--bg-card)] border border-[var(--border-card)] rounded-2xl p-3.5 sm:p-6 shadow-xs space-y-4 sm:space-y-5 transition-colors">
                   {/* Word & Letter Pattern Bar */}
                   <div className="space-y-2">
-                    <div className="flex flex-wrap items-center justify-between gap-1 text-xs text-stone-500 dark:text-stone-400">
-                      <span>{currentPuzzle.prompt}</span>
-                      <span className="font-mono text-[11px]">
+                    <div className="flex flex-wrap items-center justify-between gap-1 text-xs sm:text-sm">
+                      <span className="font-bold text-stone-900 dark:text-stone-100">{currentPuzzle.prompt}</span>
+                      <span className="font-mono text-xs font-semibold text-stone-700 dark:text-stone-300">
                         Lengths: ({currentPuzzle.answer.split(' ').map((w) => w.length).join(', ')})
                       </span>
                     </div>
@@ -1262,10 +1125,10 @@ export default function App() {
                   {/* 4-Tier Progressive Hint System + Reveal Action */}
                   <div className="pt-3 border-t border-[var(--border-card)] space-y-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5 text-xs font-semibold text-stone-700 dark:text-stone-300">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-stone-900 dark:text-stone-100">
                         <Lightbulb className="w-4 h-4 text-amber-500 shrink-0" />
                         <span>Progressive Hint System</span>
-                        <span className="text-stone-400 dark:text-stone-500 font-normal">
+                        <span className="text-stone-600 dark:text-stone-400 font-semibold">
                           ({hintsUnlocked}/4 unlocked · -15 pts each)
                         </span>
                       </div>
@@ -1274,10 +1137,10 @@ export default function App() {
                         <button
                           type="button"
                           onClick={handleRevealAnswer}
-                          className={`text-xs font-medium px-2.5 py-1 rounded-lg border transition-colors flex items-center gap-1 ${
+                          className={`text-xs font-bold px-2.5 py-1 rounded-lg border transition-colors flex items-center gap-1 ${
                             confirmReveal
                               ? 'bg-red-600 text-white border-red-600'
-                              : 'bg-[var(--bg-subtle)] text-stone-600 dark:text-stone-300 border-[var(--border-card)] hover:opacity-85'
+                              : 'bg-[var(--bg-subtle)] text-stone-800 dark:text-stone-200 border-[var(--border-card)] hover:opacity-85'
                           }`}
                         >
                           <Eye className="w-3.5 h-3.5" />
@@ -1295,34 +1158,34 @@ export default function App() {
                         return (
                           <div
                             key={tier.tier}
-                            className={`p-3 rounded-xl border text-left transition-all ${
+                            className={`p-3.5 rounded-xl border text-left transition-all ${
                               isUnlocked
-                                ? 'bg-amber-50/50 dark:bg-amber-950/25 border-amber-200/80 dark:border-amber-800/70 text-stone-800 dark:text-stone-200'
+                                ? 'bg-amber-100/90 dark:bg-amber-950/70 border-amber-300 dark:border-amber-700 text-stone-950 dark:text-stone-100 shadow-2xs'
                                 : isNextToUnlock
-                                ? 'bg-[var(--bg-card)] border-[var(--border-card)] hover:border-amber-400 cursor-pointer'
-                                : 'bg-[var(--bg-subtle)] border-[var(--border-card)] opacity-60'
+                                ? 'bg-[var(--bg-subtle)] border-amber-400/80 hover:border-amber-500 cursor-pointer text-stone-900 dark:text-stone-100'
+                                : 'bg-[var(--bg-subtle)] border-[var(--border-card)] opacity-75 text-stone-700 dark:text-stone-300'
                             }`}
                             onClick={() => {
                               if (isNextToUnlock) handleUnlockHint(tier.tier);
                             }}
                           >
-                            <div className="flex items-center justify-between gap-2 mb-1">
-                              <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-400">
+                            <div className="flex items-center justify-between gap-2 mb-1.5">
+                              <span className="font-mono text-xs font-bold uppercase tracking-wider text-amber-950 dark:text-amber-300">
                                 Hint {tier.tier}: {tier.label}
                               </span>
                               {!isUnlocked && (
-                                <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-subtle)] text-stone-600 dark:text-stone-400">
+                                <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded bg-amber-200/90 dark:bg-amber-900/60 text-amber-950 dark:text-amber-200 border border-amber-300 dark:border-amber-700">
                                   {isNextToUnlock ? 'Tap to Unlock (-15 pts)' : 'Locked'}
                                 </span>
                               )}
                             </div>
 
                             {isUnlocked ? (
-                              <p className="text-xs text-stone-700 dark:text-stone-300 leading-relaxed font-medium">
+                              <p className="text-xs sm:text-sm text-stone-950 dark:text-stone-100 leading-relaxed font-semibold">
                                 {tier.content}
                               </p>
                             ) : (
-                              <p className="text-xs text-stone-400 dark:text-stone-500 italic">
+                              <p className="text-xs text-stone-700 dark:text-stone-300 font-medium italic">
                                 {isNextToUnlock
                                   ? 'Click to reveal this clue tier...'
                                   : `Unlock Hint ${tier.tier - 1} first`}
@@ -1374,22 +1237,18 @@ export default function App() {
                 </h2>
                 <div className="flex items-center gap-3">
                   <button
-                    type="button"
-                    onClick={() => {
-                      setAuthModalTab('leaderboards');
-                      setIsAuthModalOpen(true);
-                    }}
-                    className="px-3 py-1.5 rounded-lg bg-[#2B0938] text-[#F6C915] text-xs font-bold flex items-center gap-1.5 hover:opacity-90 transition-opacity cursor-pointer"
+                    onClick={() => setShowIntroScreen(true)}
+                    className="text-xs text-[var(--brand-text)] font-bold hover:underline flex items-center gap-1 transition-colors cursor-pointer"
                   >
-                    <Trophy className="w-3.5 h-3.5" />
-                    <span>View Leaderboard</span>
+                    <Play className="w-3.5 h-3.5" />
+                    <span>Replay Intro Video</span>
                   </button>
                   <button
                     onClick={() => {
                       localStorage.removeItem(STORAGE_KEY);
                       setProgress(INITIAL_PROGRESS);
                     }}
-                    className="text-xs text-stone-500 dark:text-stone-400 hover:text-red-600 flex items-center gap-1 transition-colors"
+                    className="text-xs text-stone-500 dark:text-stone-400 hover:text-red-600 flex items-center gap-1 transition-colors cursor-pointer"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
                     <span>Reset Progress</span>
@@ -1574,14 +1433,93 @@ export default function App() {
         </div>
       )}
 
-      {/* Unified Google / Email Auth & Leaderboards Modal */}
-      <UnifiedAuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-        user={currentUser}
-        initialGameId="rebus"
-        initialTab={authModalTab}
-      />
+      {/* App Load Intro Video Screen */}
+      {showIntroScreen && (
+        <div className="fixed inset-0 z-50 bg-stone-950/95 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-300">
+          <div className="relative max-w-3xl w-full bg-stone-900 border-2 border-purple-500/40 rounded-3xl overflow-hidden shadow-2xl flex flex-col items-center">
+            {/* Header Bar */}
+            <div className="w-full bg-stone-950/90 px-4 py-3 border-b border-purple-900/50 flex items-center justify-between">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <img
+                  src="/assets/aistudio/3d_logo_944e5372.png"
+                  alt="The Missing Piece Logo"
+                  className="w-7 h-7 rounded-full object-contain shrink-0"
+                />
+                <span className="font-serif text-sm sm:text-base font-bold text-amber-300 truncate">
+                  The Missing Piece · Rebus Challenge
+                </span>
+              </div>
+              <button
+                onClick={() => setShowIntroScreen(false)}
+                className="text-xs font-semibold text-stone-400 hover:text-white px-2.5 py-1 rounded-lg bg-stone-800/80 hover:bg-stone-800 border border-stone-700 transition-colors shrink-0 cursor-pointer"
+              >
+                Skip Intro
+              </button>
+            </div>
+
+            {/* Video Box */}
+            <div className="relative w-full aspect-video bg-black flex items-center justify-center overflow-hidden">
+              <video
+                ref={introVideoRef}
+                src="/assets/aistudio/gemini_generated_video_cbfa0c87_3880c18e.mp4"
+                autoPlay
+                playsInline
+                muted={introMuted}
+                onEnded={() => setIntroVideoFinished(true)}
+                onError={() => {
+                  setIntroVideoFinished(true);
+                }}
+                onTimeUpdate={(e) => {
+                  if (e.currentTarget.currentTime >= 12) {
+                    setIntroVideoFinished(true);
+                  }
+                }}
+                className="w-full h-full object-cover"
+              />
+
+              {/* Mute/Unmute Toggle */}
+              <button
+                onClick={() => setIntroMuted((prev) => !prev)}
+                className="absolute top-3 right-3 z-10 p-2 rounded-full bg-stone-900/80 text-amber-300 hover:bg-stone-900 border border-amber-500/40 transition-colors cursor-pointer"
+                title={introMuted ? 'Unmute video sound' : 'Mute video sound'}
+              >
+                {introMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+              </button>
+
+              {/* Start Game CTA Overlay (appears after 11 seconds or when video finishes) */}
+              {introVideoFinished && (
+                <div className="absolute inset-0 bg-stone-950/65 backdrop-blur-xs flex flex-col items-center justify-center p-4 animate-in fade-in zoom-in-95 duration-500 z-20">
+                  <button
+                    onClick={() => setShowIntroScreen(false)}
+                    className="px-8 py-4 sm:px-10 sm:py-5 rounded-2xl bg-gradient-to-r from-purple-800 via-purple-700 to-amber-500 hover:from-purple-700 hover:to-amber-400 text-white font-serif text-xl sm:text-3xl font-bold shadow-2xl hover:scale-105 active:scale-95 transition-all duration-200 flex items-center gap-3 border-2 border-amber-300 cursor-pointer"
+                  >
+                    <Play className="w-7 h-7 sm:w-8 sm:h-8 text-amber-300 fill-amber-300 shrink-0" />
+                    <span>Start Game</span>
+                  </button>
+                  <p className="text-amber-200/90 font-medium text-xs sm:text-sm mt-3.5 tracking-wide drop-shadow-md">
+                    Click to open the main rebus puzzle game
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Subtitle / Progress Footer */}
+            <div className="w-full bg-stone-950 px-4 py-2.5 flex items-center justify-between text-xs text-stone-400 border-t border-stone-800">
+              <span className="font-mono text-[11px] text-purple-300">
+                {introVideoFinished ? 'Intro Video Finished' : 'Playing Intro Video (12s)...'}
+              </span>
+              {!introVideoFinished && (
+                <button
+                  onClick={() => setIntroVideoFinished(true)}
+                  className="text-amber-400 hover:text-amber-300 underline font-medium text-[11px] cursor-pointer"
+                >
+                  Show Start Button Now
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
