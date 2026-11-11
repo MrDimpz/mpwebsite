@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router';
-import { ArrowUpRight, Download, Loader2, Shield } from 'lucide-react';
+import { Link } from 'react-router';
+import { ArrowUpRight, Download, Loader2 } from 'lucide-react';
 import { openCookiePreferences } from '@/lib/cookie-consent';
 
 export function SiteFooter() {
-  const location = useLocation();
-  const isInteractivePage = location.pathname === '/interactive-games';
   const [downloadingZip, setDownloadingZip] = useState(false);
 
   const showHostingerDownload =
@@ -73,29 +71,6 @@ export function SiteFooter() {
         <span>© 2026 The Missing Piece</span>
         <span>Independent of TikTok.</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          {isInteractivePage && (
-            <button
-              type="button"
-              onClick={() => window.dispatchEvent(new CustomEvent('open-interactive-admin-portal'))}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px',
-                fontWeight: 600,
-                color: 'var(--ink)',
-                textDecoration: 'underline',
-                textUnderlineOffset: '3px',
-                cursor: 'pointer',
-                background: 'none',
-                border: 'none',
-                fontSize: '10px',
-                padding: 0,
-              }}
-              title="Site Admin: Manage Keys & Users"
-            >
-              <Shield size={12} /> Admin Key Portal
-            </button>
-          )}
           {showHostingerDownload && (
             <a
               href="/the-missing-piece-hostinger.zip"

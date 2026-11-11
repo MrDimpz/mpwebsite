@@ -1,0 +1,209 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" width="1200" height="720">
+  <defs>
+    <clipPath id="lexiClip">
+      <rect x="0" y="0" width="1200" height="720" rx="16" />
+    </clipPath>
+    <linearGradient id="lexiBgGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#180727" />
+      <stop offset="50%" stop-color="#2a0a3d" />
+      <stop offset="100%" stop-color="#12041d" />
+    </linearGradient>
+    <linearGradient id="lexiCoral" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ff4b72" />
+      <stop offset="100%" stop-color="#d91e48" />
+    </linearGradient>
+    <linearGradient id="lexiGold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fbbf24" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
+    <linearGradient id="lexiCyan" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#0284c7" />
+    </linearGradient>
+    <linearGradient id="lexiTileFace" x1="0" y1="0" x2="0" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="100%" stop-color="#ede4f5" />
+    </linearGradient>
+    <linearGradient id="lexiTileDark" x1="0" y1="0" x2="0" y2="100%">
+      <stop offset="0%" stop-color="#33144e" />
+      <stop offset="100%" stop-color="#1e0931" />
+    </linearGradient>
+    <filter id="lexiGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#ff4b72" flood-opacity="0.4" />
+    </filter>
+    <filter id="lexiCardShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#000000" flood-opacity="0.5" />
+    </filter>
+  </defs>
+  <g clip-path="url(#lexiClip)">
+    <!-- Main Background -->
+    <rect x="0" y="0" width="1200" height="720" fill="url(#lexiBgGrad)" />
+
+    <!-- Browser Top Window Bar -->
+    <rect x="0" y="0" width="1200" height="44" fill="#11051b" />
+    <circle cx="24" cy="22" r="6" fill="#ff5f56" />
+    <circle cx="44" cy="22" r="6" fill="#ffbd2e" />
+    <circle cx="64" cy="22" r="6" fill="#27c93f" />
+    <rect x="310" y="9" width="580" height="26" rx="6" fill="#200a30" stroke="#4a1c69" stroke-width="1" />
+    <text x="600" y="26" text-anchor="middle" fill="#e9d5ff" font-family="'JetBrains Mono', monospace" font-size="13" font-weight="600">lexi.missingpiecepuzzles.fun</text>
+
+    <!-- Game Header Navigation Bar -->
+    <rect x="48" y="64" width="1104" height="62" rx="16" fill="#250b3a" stroke="#541b7a" stroke-width="1.5" />
+    <circle cx="88" cy="95" r="20" fill="#3f115e" stroke="#ff4b72" stroke-width="2" />
+    <text x="88" y="101" text-anchor="middle" fill="#ff4b72" font-family="DejaVu Sans, sans-serif" font-size="18" font-weight="800">🔤</text>
+    <text x="122" y="91" fill="#ffffff" font-family="DejaVu Sans, sans-serif" font-size="22" font-weight="800">Lexi Tiles — TikTok Live Lexicon Arena</text>
+    <text x="122" y="111" fill="#f472b6" font-family="'JetBrains Mono', monospace" font-size="12" font-weight="700">LIVE LEXICON SHOWDOWN · DYNAMIC LETTER POOL</text>
+
+    <!-- Mode & Live Status Pills -->
+    <rect x="680" y="76" width="140" height="38" rx="10" fill="rgba(251, 191, 36, 0.15)" stroke="#fbbf24" stroke-width="1.2" />
+    <text x="750" y="100" text-anchor="middle" fill="#fbbf24" font-family="'JetBrains Mono', monospace" font-size="13" font-weight="800">⚡ 3× MULTI</text>
+
+    <rect x="834" y="76" width="298" height="38" rx="10" fill="#064e3b" stroke="#34d399" stroke-width="1.5" />
+    <circle cx="858" cy="95" r="5" fill="#34d399" />
+    <text x="988" y="100" text-anchor="middle" fill="#a7f3d0" font-family="'JetBrains Mono', monospace" font-size="13" font-weight="700">TIKTOK LIVE · @MissingPiece</text>
+
+    <!-- Left Arena Container: Lexi Tiles Board -->
+    <g filter="url(#lexiCardShadow)">
+      <rect x="48" y="150" width="710" height="520" rx="24" fill="#130721" stroke="#ff4b72" stroke-width="3" />
+      
+      <!-- Sub-header inside Arena -->
+      <text x="80" y="190" fill="#c084fc" font-family="'JetBrains Mono', monospace" font-size="13" font-weight="700" letter-spacing="1">ROUND 4 · 7-LETTER TARGET POOL</text>
+      
+      <!-- Timer & Score Counters -->
+      <rect x="520" y="170" width="208" height="36" rx="10" fill="#240c39" stroke="#581c82" stroke-width="1" />
+      <text x="624" y="193" text-anchor="middle" fill="#38bdf8" font-family="'JetBrains Mono', monospace" font-size="14" font-weight="800">SCORE: 4,820 PTS</text>
+
+      <!-- Active Chain Trace Arc -->
+      <path d="M 125 315 L 235 315 L 345 315 L 455 315 L 565 315" stroke="#ff4b72" stroke-width="12" stroke-linecap="round" opacity="0.35" />
+
+      <!-- Row of Tactile 3D Word Tiles: L - E - X - I - C - O - N -->
+      <!-- Tile 1: L -->
+      <g transform="translate(80, 260)">
+        <rect x="0" y="0" width="90" height="100" rx="18" fill="url(#lexiTileFace)" stroke="#ffffff" stroke-width="3" />
+        <text x="45" y="62" text-anchor="middle" fill="#1e0633" font-family="DejaVu Sans, sans-serif" font-size="44" font-weight="800">L</text>
+        <text x="74" y="30" text-anchor="end" fill="#ff4b72" font-family="'JetBrains Mono', monospace" font-size="14" font-weight="800">1</text>
+      </g>
+
+      <!-- Tile 2: E -->
+      <g transform="translate(190, 260)">
+        <rect x="0" y="0" width="90" height="100" rx="18" fill="url(#lexiTileFace)" stroke="#ffffff" stroke-width="3" />
+        <text x="45" y="62" text-anchor="middle" fill="#1e0633" font-family="DejaVu Sans, sans-serif" font-size="44" font-weight="800">E</text>
+        <text x="74" y="30" text-anchor="end" fill="#ff4b72" font-family="'JetBrains Mono', monospace" font-size="14" font-weight="800">1</text>
+      </g>
+
+      <!-- Tile 3: X (Highlighted Coral Active Tile) -->
+      <g transform="translate(300, 250)" filter="url(#lexiGlow)">
+        <rect x="0" y="0" width="90" height="110" rx="18" fill="url(#lexiCoral)" stroke="#ffe4e6" stroke-width="3.5" />
+        <text x="45" y="68" text-anchor="middle" fill="#ffffff" font-family="DejaVu Sans, sans-serif" font-size="48" font-weight="800">X</text>
+        <text x="74" y="30" text-anchor="end" fill="#fef08a" font-family="'JetBrains Mono', monospace" font-size="15" font-weight="800">8</text>
+      </g>
+
+      <!-- Tile 4: I -->
+      <g transform="translate(410, 260)">
+        <rect x="0" y="0" width="90" height="100" rx="18" fill="url(#lexiTileFace)" stroke="#ffffff" stroke-width="3" />
+        <text x="45" y="62" text-anchor="middle" fill="#1e0633" font-family="DejaVu Sans, sans-serif" font-size="44" font-weight="800">I</text>
+        <text x="74" y="30" text-anchor="end" fill="#ff4b72" font-family="'JetBrains Mono', monospace" font-size="14" font-weight="800">1</text>
+      </g>
+
+      <!-- Tile 5: C -->
+      <g transform="translate(520, 260)">
+        <rect x="0" y="0" width="90" height="100" rx="18" fill="url(#lexiTileFace)" stroke="#ffffff" stroke-width="3" />
+        <text x="45" y="62" text-anchor="middle" fill="#1e0633" font-family="DejaVu Sans, sans-serif" font-size="44" font-weight="800">C</text>
+        <text x="74" y="30" text-anchor="end" fill="#ff4b72" font-family="'JetBrains Mono', monospace" font-size="14" font-weight="800">3</text>
+      </g>
+
+      <!-- Tile 6: O -->
+      <g transform="translate(630, 260)" opacity="0.85">
+        <rect x="0" y="0" width="90" height="100" rx="18" fill="url(#lexiTileDark)" stroke="#a855f7" stroke-width="2" />
+        <text x="45" y="62" text-anchor="middle" fill="#e9d5ff" font-family="DejaVu Sans, sans-serif" font-size="44" font-weight="800">O</text>
+        <text x="74" y="30" text-anchor="end" fill="#a855f7" font-family="'JetBrains Mono', monospace" font-size="14" font-weight="800">1</text>
+      </g>
+
+      <!-- Submission / Chat Word Banner -->
+      <g transform="translate(80, 400)">
+        <rect x="0" y="0" width="640" height="64" rx="16" fill="#1e0933" stroke="#ff4b72" stroke-width="2" />
+        <text x="24" y="38" fill="#f43f5e" font-family="'JetBrains Mono', monospace" font-size="20" font-weight="800">LEXICAL</text>
+        <text x="140" y="38" fill="#cbd5e1" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="600">submitted by TikTok chat</text>
+        <rect x="490" y="14" width="130" height="36" rx="10" fill="#059669" />
+        <text x="555" y="37" text-anchor="middle" fill="#ffffff" font-family="'JetBrains Mono', monospace" font-size="15" font-weight="800">+1,240 PTS</text>
+      </g>
+
+      <!-- Word Discovery Feed -->
+      <g transform="translate(80, 490)">
+        <rect x="0" y="0" width="640" height="140" rx="16" fill="#0f041b" stroke="rgba(255,255,255,0.08)" stroke-width="1.5" />
+        <text x="24" y="32" fill="#a78bfa" font-family="'JetBrains Mono', monospace" font-size="12" font-weight="700">RECENT WORDS UNLOCKED IN THIS ROUND</text>
+
+        <!-- Chips -->
+        <rect x="24" y="48" width="130" height="32" rx="8" fill="rgba(255, 75, 114, 0.18)" stroke="#ff4b72" stroke-width="1" />
+        <text x="89" y="69" text-anchor="middle" fill="#ff4b72" font-family="'JetBrains Mono', monospace" font-size="13" font-weight="700">EXILE · 450P</text>
+
+        <rect x="166" y="48" width="140" height="32" rx="8" fill="rgba(56, 189, 248, 0.18)" stroke="#38bdf8" stroke-width="1" />
+        <text x="236" y="69" text-anchor="middle" fill="#38bdf8" font-family="'JetBrains Mono', monospace" font-size="13" font-weight="700">COIL · 320P</text>
+
+        <rect x="318" y="48" width="140" height="32" rx="8" fill="rgba(251, 191, 36, 0.18)" stroke="#fbbf24" stroke-width="1" />
+        <text x="388" y="69" text-anchor="middle" fill="#fbbf24" font-family="'JetBrains Mono', monospace" font-size="13" font-weight="700">LICE · 380P</text>
+
+        <rect x="470" y="48" width="146" height="32" rx="8" fill="rgba(52, 211, 153, 0.18)" stroke="#34d399" stroke-width="1" />
+        <text x="543" y="69" text-anchor="middle" fill="#34d399" font-family="'JetBrains Mono', monospace" font-size="13" font-weight="700">CLONE · 590P</text>
+
+        <text x="24" y="112" fill="#94a3b8" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="600">Total round vocabulary found: 32 / 48 words · 14 rare words remaining</text>
+      </g>
+    </g>
+
+    <!-- Right Container: Live TikTok Solvers Leaderboard -->
+    <g filter="url(#lexiCardShadow)">
+      <rect x="782" y="150" width="370" height="520" rx="24" fill="#130721" stroke="rgba(255,255,255,0.14)" stroke-width="2" />
+      
+      <!-- Leaderboard Header -->
+      <rect x="806" y="174" width="322" height="42" rx="12" fill="#200a30" stroke="#4c1a6b" stroke-width="1" />
+      <text x="967" y="200" text-anchor="middle" fill="#38bdf8" font-family="'JetBrains Mono', monospace" font-size="14" font-weight="800">LIVE CHAT SOLVERS</text>
+
+      <!-- Solver 1 -->
+      <g transform="translate(806, 234)">
+        <rect x="0" y="0" width="322" height="64" rx="14" fill="#270c3d" stroke="#ff4b72" stroke-width="1.8" />
+        <circle cx="32" cy="32" r="16" fill="#ff4b72" />
+        <text x="32" y="38" text-anchor="middle" fill="#ffffff" font-family="'JetBrains Mono', monospace" font-size="14" font-weight="800">1</text>
+        <text x="60" y="28" fill="#ffffff" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700">@wordmaster</text>
+        <text x="60" y="48" fill="#ff7597" font-family="'JetBrains Mono', monospace" font-size="12" font-weight="700">LEXICAL (+1,240)</text>
+        <text x="300" y="38" text-anchor="end" fill="#34d399" font-family="'JetBrains Mono', monospace" font-size="16" font-weight="800">2,480</text>
+      </g>
+
+      <!-- Solver 2 -->
+      <g transform="translate(806, 312)">
+        <rect x="0" y="0" width="322" height="64" rx="14" fill="#1c092d" stroke="rgba(255,255,255,0.08)" stroke-width="1" />
+        <circle cx="32" cy="32" r="16" fill="#38bdf8" />
+        <text x="32" y="38" text-anchor="middle" fill="#081b36" font-family="'JetBrains Mono', monospace" font-size="14" font-weight="800">2</text>
+        <text x="60" y="28" fill="#ffffff" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700">@stream_solver</text>
+        <text x="60" y="48" fill="#38bdf8" font-family="'JetBrains Mono', monospace" font-size="12" font-weight="700">EXILE (+450)</text>
+        <text x="300" y="38" text-anchor="end" fill="#e2e8f0" font-family="'JetBrains Mono', monospace" font-size="16" font-weight="800">1,890</text>
+      </g>
+
+      <!-- Solver 3 -->
+      <g transform="translate(806, 390)">
+        <rect x="0" y="0" width="322" height="64" rx="14" fill="#1c092d" stroke="rgba(255,255,255,0.08)" stroke-width="1" />
+        <circle cx="32" cy="32" r="16" fill="#fbbf24" />
+        <text x="32" y="38" text-anchor="middle" fill="#331e03" font-family="'JetBrains Mono', monospace" font-size="14" font-weight="800">3</text>
+        <text x="60" y="28" fill="#ffffff" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700">@puzzlequeen</text>
+        <text x="60" y="48" fill="#fbbf24" font-family="'JetBrains Mono', monospace" font-size="12" font-weight="700">LICE (+380)</text>
+        <text x="300" y="38" text-anchor="end" fill="#e2e8f0" font-family="'JetBrains Mono', monospace" font-size="16" font-weight="800">1,420</text>
+      </g>
+
+      <!-- Solver 4 -->
+      <g transform="translate(806, 468)">
+        <rect x="0" y="0" width="322" height="64" rx="14" fill="#1c092d" stroke="rgba(255,255,255,0.08)" stroke-width="1" />
+        <circle cx="32" cy="32" r="16" fill="#a78bfa" />
+        <text x="32" y="38" text-anchor="middle" fill="#1b0833" font-family="'JetBrains Mono', monospace" font-size="14" font-weight="800">4</text>
+        <text x="60" y="28" fill="#ffffff" font-family="DejaVu Sans, sans-serif" font-size="15" font-weight="700">@lexicoder</text>
+        <text x="60" y="48" fill="#a78bfa" font-family="'JetBrains Mono', monospace" font-size="12" font-weight="700">CLONE (+590)</text>
+        <text x="300" y="38" text-anchor="end" fill="#e2e8f0" font-family="'JetBrains Mono', monospace" font-size="16" font-weight="800">1,150</text>
+      </g>
+
+      <!-- Live Chat Instructions Footnote -->
+      <g transform="translate(806, 550)">
+        <rect x="0" y="0" width="322" height="90" rx="14" fill="#0e0416" stroke="#ff4b72" stroke-width="1.2" stroke-dasharray="4 4" />
+        <text x="161" y="36" text-anchor="middle" fill="#ff4b72" font-family="'JetBrains Mono', monospace" font-size="13" font-weight="800">TIKTOK LIVE CHAT COMMANDS</text>
+        <text x="161" y="60" text-anchor="middle" fill="#e2e8f0" font-family="DejaVu Sans, sans-serif" font-size="13" font-weight="600">Type any word in live stream chat!</text>
+      </g>
+    </g>
+  </g>
+</svg>
