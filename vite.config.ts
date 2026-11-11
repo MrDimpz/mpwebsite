@@ -14,6 +14,24 @@ function generateHostingerZipFromDist(): void {
     return;
   }
 
+  // Create deterministic index-latest.js and index-latest.css copies so .htaccess can redirect any cached hash
+  const assetsDir = path.join(DIST_DIR, 'assets');
+  if (fs.existsSync(assetsDir)) {
+    const assetFiles = fs.readdirSync(assetsDir);
+    const mainJs = assetFiles.find(
+      (f) => f.startsWith('index-') && f.endsWith('.js') && f !== 'index-latest.js'
+    );
+    if (mainJs) {
+      fs.copyFileSync(path.join(assetsDir, mainJs), path.join(assetsDir, 'index-latest.js'));
+    }
+    const mainCss = assetFiles.find(
+      (f) => f.startsWith('index-') && f.endsWith('.css') && f !== 'index-latest.css'
+    );
+    if (mainCss) {
+      fs.copyFileSync(path.join(assetsDir, mainCss), path.join(assetsDir, 'index-latest.css'));
+    }
+  }
+
   // Remove any recursive copy of the zip inside dist/ before packaging
   const distZip = path.join(DIST_DIR, 'the-missing-piece-hostinger.zip');
   if (fs.existsSync(distZip)) {
@@ -23,10 +41,11 @@ function generateHostingerZipFromDist(): void {
   }
 
   const pyScript = `
-import os, zipfile
+import os, shutil, zipfile
 
 dist_dir = ${JSON.stringify(DIST_DIR)}
 zip_path = ${JSON.stringify(PUBLIC_ZIP_PATH)}
+dist_zip_path = ${JSON.stringify(distZip)}
 tmp_zip_path = zip_path + ".tmp"
 
 store_exts = {'.png', '.jpg', '.jpeg', '.webp', '.gif', '.mp4', '.webm', '.woff', '.woff2'}
@@ -48,6 +67,7 @@ with zipfile.ZipFile(tmp_zip_path, 'w') as zf:
             zf.write(full_path, arcname, compress_type=compress_type)
 
 os.replace(tmp_zip_path, zip_path)
+shutil.copyfile(zip_path, dist_zip_path)
 `;
 
   execFileSync('python3', ['-c', pyScript], { stdio: 'ignore' });

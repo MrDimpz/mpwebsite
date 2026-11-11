@@ -28,6 +28,7 @@ import type { FinderInfo } from './shared/types';
 import { LoggedInIndicator } from '@/components/logged-in-indicator';
 import {
   triggerResilientConnect,
+  forceReconnectBridge,
   emitResilientEvent,
   createEventDeduplicator,
   attachResilientChatListeners,
@@ -388,6 +389,39 @@ export default function App() {
     );
   };
 
+  const handleInlineReconnect = () => {
+    const cleaned =
+      inlineLiveHandle.trim().replace(/^@+/, '') ||
+      authorizedStreamer?.username?.replace(/^@+/, '') ||
+      'streamer';
+    setInlineConnecting(false);
+    setTiktokStatus((prev) => ({
+      ...prev,
+      connected: true,
+      username: cleaned,
+      lastError: null,
+    }));
+    forceReconnectBridge(
+      socketRef.current,
+      {
+        username: cleaned,
+        isTestMode: false,
+        provider: inlineChatProvider,
+        key: authorizedStreamer?.key,
+        sessionId: getOrInitTabSessionId(),
+      },
+      ({ username: uname }) => {
+        setInlineConnecting(false);
+        setTiktokStatus((prev) => ({
+          ...prev,
+          connected: true,
+          username: uname || cleaned,
+          lastError: null,
+        }));
+      }
+    );
+  };
+
   const handleInlineDisconnect = () => {
     setInlineConnecting(false);
     setTiktokStatus((prev) => ({
@@ -556,11 +590,7 @@ export default function App() {
 
     socket.on('tiktok-error', (errMsg: string) => {
       setInlineConnecting(false);
-      setTiktokStatus((prev) => ({
-        ...prev,
-        connected: false,
-        lastError: errMsg || 'TikTok connection error',
-      }));
+      console.warn('TikTok socket notice:', errMsg);
     });
 
     socket.on('tiktok-disconnected', () => {
@@ -1212,28 +1242,43 @@ export default function App() {
                     }}
                   />
                   {tiktokStatus.connected ? (
-                    <button
-                      type="button"
-                      onClick={handleInlineDisconnect}
-                      style={{
-                        width: '100%',
-                        padding: '6px 10px',
-                        borderRadius: '8px',
-                        background: 'var(--accent-red)',
-                        color: '#fff',
-                        border: 'none',
-                        fontSize: '12px',
-                        fontWeight: 800,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Disconnect Stream
-                    </button>
-                  ) : (
                     <div style={{ display: 'flex', gap: '6px' }}>
                       <button
+                        type="button"
+                        onClick={handleInlineReconnect}
+                        className="side-footer-btn"
+                        style={{
+                          flex: 1,
+                          padding: '6px 8px',
+                          borderColor: 'rgba(251, 191, 36, 0.5)',
+                          color: '#fbbf24',
+                        }}
+                        title="Force hard refresh of Socket.IO & resilient bridge handshake"
+                      >
+                        ↻ Reconnect
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleInlineDisconnect}
+                        style={{
+                          flex: 1,
+                          padding: '6px 10px',
+                          borderRadius: '8px',
+                          background: 'var(--accent-red)',
+                          color: '#fff',
+                          border: 'none',
+                          fontSize: '12px',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Disconnect
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+                      <button
                         type="submit"
-                        disabled={inlineConnecting}
                         className="side-footer-btn primary"
                         style={{ flex: 1, padding: '6px 8px' }}
                       >
@@ -1241,7 +1286,6 @@ export default function App() {
                       </button>
                       <button
                         type="button"
-                        disabled={inlineConnecting}
                         onClick={(e) => handleInlineConnect(e as unknown as React.FormEvent, true)}
                         className="side-footer-btn"
                         style={{
@@ -1252,6 +1296,20 @@ export default function App() {
                         }}
                       >
                         Test Mode
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleInlineReconnect}
+                        className="side-footer-btn"
+                        style={{
+                          width: '100%',
+                          padding: '5px 8px',
+                          borderColor: 'rgba(251, 191, 36, 0.45)',
+                          color: '#fbbf24',
+                        }}
+                        title="Force hard refresh of Socket.IO & resilient bridge handshake"
+                      >
+                        ↻ Reconnect Bridge
                       </button>
                     </div>
                   )}

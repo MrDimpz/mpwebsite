@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { Eye, Gift, Heart, Radio, Send, Terminal, Wifi, WifiOff, AlertTriangle, X, Check } from 'lucide-react';
+import { Eye, Gift, Heart, Radio, Send, Terminal, Wifi, WifiOff, AlertTriangle, X, Check, RefreshCw } from 'lucide-react';
 import { LiveChatItem, PublicGameState, SearchWordSlot, TikTokConnectionStatus } from '../shared/types';
 import { getOrInitTabSessionId } from '../utils/session';
-import { triggerResilientConnect, emitResilientEvent } from '@/lib/live-chat-bridge';
+import { triggerResilientConnect, forceReconnectBridge, emitResilientEvent } from '@/lib/live-chat-bridge';
 
 export interface SocketChatEvent {
   uniqueId: string;
@@ -201,17 +201,11 @@ export const TikTokLivePanel: React.FC<TikTokLivePanelProps> = ({
         }));
         setErrorMessage(null);
         onConnChangeRef.current?.(true, uname);
-      } else {
-        setConnState('disconnected');
-        setConnectedInfo(null);
-        onConnChangeRef.current?.(false, null);
       }
     });
 
     socket.on('tiktok-error', (errMsg: string) => {
-      setConnState('error');
-      setErrorMessage(errMsg || 'Failed to connect to TikTok Live stream');
-      onConnChangeRef.current?.(false, null);
+      console.warn('TikTok socket notice:', errMsg);
     });
 
     socket.on('tiktok-disconnected', () => {
@@ -300,6 +294,36 @@ export const TikTokLivePanel: React.FC<TikTokLivePanelProps> = ({
     onConnChangeRef.current?.(true, cleaned);
 
     triggerResilientConnect(
+      socketRef.current,
+      {
+        username: cleaned,
+        isTestMode,
+        provider: chatProvider,
+        key: authorizedStreamer?.key,
+        sessionId: getOrInitTabSessionId(),
+      },
+      ({ username: uname, roomId }) => {
+        setConnState('connected');
+        setConnectedInfo({ username: uname || cleaned, roomId: roomId || defaultRoom });
+        setErrorMessage(null);
+        onConnChangeRef.current?.(true, uname || cleaned);
+      }
+    );
+  };
+
+  const handleReconnect = () => {
+    const cleaned =
+      (username.trim().replace(/^@+/, '') ||
+        authorizedStreamer?.username?.replace(/^@+/, '') ||
+        'streamer');
+    const isTestMode = connectedInfo?.roomId === 'TEST_SIMULATION_ROOM';
+    const defaultRoom = isTestMode ? 'TEST_SIMULATION_ROOM' : 'LIVE_RELAY';
+    setConnState('connected');
+    setConnectedInfo({ username: cleaned, roomId: defaultRoom });
+    setErrorMessage(null);
+    onConnChangeRef.current?.(true, cleaned);
+
+    forceReconnectBridge(
       socketRef.current,
       {
         username: cleaned,
@@ -581,29 +605,47 @@ export const TikTokLivePanel: React.FC<TikTokLivePanelProps> = ({
                   className="flex-1 min-w-[160px] px-3 py-2 text-sm rounded-lg bg-[#151F32] border border-slate-700 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400"
                 />
                 {connState === 'connected' ? (
-                  <button
-                    type="button"
-                    onClick={handleDisconnect}
-                    className="px-4 py-2 text-xs font-semibold rounded-lg bg-rose-500 text-white hover:bg-rose-400 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
-                  >
-                    Disconnect
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleReconnect}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-amber-500/20 border border-amber-500/50 text-amber-300 hover:bg-amber-500/30 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                      title="Force hard refresh of Socket.IO & resilient bridge handshake"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      Reconnect
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDisconnect}
+                      className="px-4 py-2 text-xs font-semibold rounded-lg bg-rose-500 text-white hover:bg-rose-400 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                    >
+                      Disconnect
+                    </button>
+                  </>
                 ) : (
                   <>
                     <button
                       type="submit"
-                      disabled={connState === 'connecting'}
-                      className="px-4 py-2 text-xs font-semibold rounded-lg bg-amber-500 text-slate-950 hover:bg-amber-400 disabled:opacity-50 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                      className="px-4 py-2 text-xs font-semibold rounded-lg bg-amber-500 text-slate-950 hover:bg-amber-400 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
                     >
                       {connState === 'connecting' ? 'Connecting...' : `Connect (${chatProvider === 'tikfinity' ? 'Tikfinity' : 'BetterTok'})`}
                     </button>
                     <button
                       type="button"
-                      disabled={connState === 'connecting'}
                       onClick={(e) => handleConnect(e as unknown as React.FormEvent, true)}
-                      className="px-3 py-2 text-xs font-semibold rounded-lg bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 hover:bg-emerald-500/30 disabled:opacity-50 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                      className="px-3 py-2 text-xs font-semibold rounded-lg bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 hover:bg-emerald-500/30 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
                     >
                       Start Test Mode
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleReconnect}
+                      className="inline-flex items-center gap-1 px-3 py-2 text-xs font-semibold rounded-lg bg-slate-800 border border-slate-700 text-slate-200 hover:bg-slate-700 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                      title="Force hard refresh of Socket.IO & resilient bridge handshake"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      Reconnect
                     </button>
                   </>
                 )}
@@ -639,17 +681,39 @@ export const TikTokLivePanel: React.FC<TikTokLivePanelProps> = ({
                   </div>
                 </div>
 
-                <div className="p-3 rounded-xl bg-black/40 border border-slate-800 text-[11px] font-mono text-slate-300 space-y-1">
-                  <div className="text-amber-400 font-bold">
-                    {chatProvider === 'tikfinity' ? 'Tikfinity Webhook URL:' : 'BetterTok Webhook URL:'}
+                <div className="p-3 rounded-xl bg-black/40 border border-slate-800 text-[11px] font-mono text-slate-300 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-amber-400 font-bold">
+                      {chatProvider === 'tikfinity' ? 'Tikfinity Webhook URL:' : 'BetterTok Webhook URL:'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await fetch(`/api/${chatProvider}/event`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              uniqueId: 'test_viewer',
+                              nickname: 'Test Viewer',
+                              comment: 'PLANET',
+                            }),
+                          });
+                        } catch {}
+                      }}
+                      className="px-2 py-0.5 rounded bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 text-[10px] font-bold cursor-pointer transition-colors"
+                      title="Send test chat to verify webhook ingestion"
+                    >
+                      ⚡ Test Webhook Ping
+                    </button>
                   </div>
-                  <div className="bg-black/60 p-2 rounded border border-slate-800 text-white select-all break-all">
-                    {window.location.origin}/api/{chatProvider === 'tikfinity' ? 'tikfinity' : 'bettertok'}/event
+                  <div className="bg-black/60 p-2 rounded border border-slate-800 text-white select-all break-all text-[11px]">
+                    {typeof window !== 'undefined' ? window.location.origin : ''}/api/{chatProvider === 'tikfinity' ? 'tikfinity' : 'bettertok'}/event
                   </div>
-                  <div className="text-[10px] text-slate-400 pt-1">
+                  <div className="text-[10px] text-slate-400 leading-relaxed">
                     {chatProvider === 'tikfinity'
-                      ? 'Configure Tikfinity webhook to POST JSON events to this endpoint.'
-                      : 'Configure BetterTok webhook to POST JSON events (supporting message & user object) to this endpoint.'}
+                      ? 'In Tikfinity: Actions & Events → Create Action → Trigger: Chat Message → Action: Webhook → Method: POST → URL above. Any JSON comment payload is supported!'
+                      : 'In BetterTok: Settings → Webhooks → Set POST URL above. Both message & comment JSON payloads are automatically recognized!'}
                   </div>
                 </div>
               </div>

@@ -677,6 +677,7 @@ app.get('/api/tiktok/status', (_req, res) => {
 app.get('/api/download-hostinger-zip', (_req, res) => {
   const zipPath = path.join(__dirname, 'public', 'the-missing-piece-hostinger.zip');
   if (fs.existsSync(zipPath)) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
     res.download(zipPath, 'the-missing-piece-hostinger.zip');
   } else {
     res.status(404).json({ error: 'Zip bundle not found' });

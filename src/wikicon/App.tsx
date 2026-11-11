@@ -19,6 +19,7 @@ import {
 } from '@/lib/interactive-key-auth';
 import {
   triggerResilientConnect,
+  forceReconnectBridge,
   emitResilientEvent,
   createEventDeduplicator,
   attachResilientChatListeners,
@@ -374,8 +375,7 @@ export function App() {
     );
 
     socket.on('tiktok-error', (errMsg: string) => {
-      setTiktokConnState('error');
-      setTiktokError(errMsg || 'TikTok connection error');
+      console.warn('TikTok socket notice:', errMsg);
     });
 
     socket.on('tiktok-disconnected', () => {
@@ -591,6 +591,40 @@ export function App() {
     showToast(`Connected to TikTok Live @${cleaned}`, 'green');
 
     triggerResilientConnect(
+      socketRef.current,
+      {
+        username: cleaned,
+        isTestMode,
+        provider: savedProvider,
+      },
+      ({ username: uname, roomId }) => {
+        setTiktokConnState('connected');
+        setConnectedUsername(uname || cleaned);
+        if (roomId) setConnectedRoomId(roomId);
+      }
+    );
+  };
+
+  const handleReconnectTikTok = (username: string, isTestMode = false) => {
+    recordActivity();
+    const cleaned =
+      username.trim().replace(/^@+/, '') ||
+      connectedUsername?.replace(/^@+/, '') ||
+      authenticatedStreamer?.replace(/^@+/, '') ||
+      'streamer';
+    let savedProvider: 'tikfinity' | 'bettertok' = 'tikfinity';
+    try {
+      const p = localStorage.getItem('chat_integration_provider');
+      if (p === 'bettertok' || p === 'tikfinity') savedProvider = p;
+    } catch {}
+
+    setTiktokConnState('connected');
+    setConnectedUsername(cleaned);
+    setConnectedRoomId(isTestMode ? 'TEST_SIMULATION_ROOM' : 'LIVE_RELAY');
+    setTiktokError(null);
+    showToast(`Reconnected @${cleaned} · Bridge & Socket refreshed!`, 'green');
+
+    forceReconnectBridge(
       socketRef.current,
       {
         username: cleaned,
@@ -1857,6 +1891,7 @@ export function App() {
         connectedRoomId={connectedRoomId}
         errorMessage={tiktokError}
         onConnectTikTok={handleConnectTikTok}
+        onReconnectTikTok={handleReconnectTikTok}
         onDisconnectTikTok={handleDisconnectTikTok}
         onSimulateChat={(data) => {
           recordActivity();

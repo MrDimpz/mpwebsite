@@ -66,6 +66,7 @@ import {
 import { io, Socket } from 'socket.io-client';
 import {
   triggerResilientConnect,
+  forceReconnectBridge,
   emitResilientEvent,
   createEventDeduplicator,
   attachResilientChatListeners,
@@ -679,9 +680,7 @@ export default function App() {
     });
 
     newSocket.on('tiktok-error', (msg: string) => {
-      setTiktokError(msg || 'Failed to connect to TikTok Live');
-      setIsLiveConnected(false);
-      showToast(msg || 'TikTok Live error', 'error');
+      console.warn('TikTok socket notice:', msg);
     });
 
     newSocket.on('tiktok-disconnected', () => {
@@ -764,6 +763,46 @@ export default function App() {
       }
     },
     [socket, gameState, showToast]
+  );
+
+  const handleReconnectTikTok = useCallback(
+    (username: string, isTestMode?: boolean) => {
+      const clean = username.trim().replace(/^@+/, '') || tiktokUsername || 'streamer';
+      setTiktokUsername(clean);
+      setTiktokError(null);
+      let savedProvider: 'tikfinity' | 'bettertok' = 'tikfinity';
+      try {
+        const p = localStorage.getItem('chat_integration_provider');
+        if (p === 'bettertok' || p === 'tikfinity') savedProvider = p;
+      } catch {}
+
+      setIsLiveConnected(true);
+      setRoomId(isTestMode ? 'TEST_SIMULATION_ROOM' : 'LIVE_RELAY');
+
+      forceReconnectBridge(
+        socket,
+        {
+          username: clean,
+          isTestMode,
+          provider: savedProvider,
+        },
+        ({ roomId: rId }) => {
+          setIsLiveConnected(true);
+          if (rId) setRoomId(rId);
+        }
+      );
+
+      showToast(
+        `Reconnected @${clean}`,
+        'emerald',
+        'Socket.IO & Live Bridge handshake refreshed!'
+      );
+      setIsConnectModalOpen(false);
+      if (gameState === 'TITLE_MENU') {
+        setGameState('PLAYING');
+      }
+    },
+    [socket, tiktokUsername, gameState, showToast]
   );
 
   const handleDisconnectTikTok = useCallback(() => {
@@ -1059,6 +1098,7 @@ export default function App() {
         tiktokError={tiktokError}
         roomId={roomId}
         onConnect={handleConnectTikTok}
+        onReconnect={handleReconnectTikTok}
         onDisconnect={handleDisconnectTikTok}
         onOpenSimulator={() => setIsSimulatorOpen(true)}
         onSimulateChat={handleSimulateChat}

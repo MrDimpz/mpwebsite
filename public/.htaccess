@@ -1,6 +1,31 @@
+<IfModule mod_headers.c>
+  <FilesMatch "\.(html|htm|php|js|css)$">
+    Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+  </FilesMatch>
+</IfModule>
+
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
+
+  # Route /socket.io/* requests to /api/relay.php so Socket.IO v4 HTTP polling works natively on HTML/PHP hosts
+  RewriteCond %{REQUEST_URI} ^/socket\.io/ [NC]
+  RewriteRule ^socket\.io/(.*)$ /api/relay.php?route=socket.io [QSA,L]
+
+  # Route /api/* requests to /api/relay.php on Apache/Hostinger HTML hosting
+  RewriteCond %{REQUEST_URI} ^/api/ [NC]
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteRule ^api/(.*)$ /api/relay.php?route=$1 [QSA,L]
+
+  # Always serve the latest compiled JS and CSS bundles even if a browser cached an older index.html hash
+  RewriteCond %{REQUEST_URI} !^/assets/index-latest\.js$ [NC]
+  RewriteRule ^assets/index-[A-Za-z0-9_-]+\.js$ /assets/index-latest.js [L]
+
+  RewriteCond %{REQUEST_URI} !^/assets/index-latest\.css$ [NC]
+  RewriteRule ^assets/index-[A-Za-z0-9_-]+\.css$ /assets/index-latest.css [L]
+
   RewriteRule ^index\.html$ - [L]
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d

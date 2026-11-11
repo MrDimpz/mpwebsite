@@ -48,8 +48,7 @@ export function InteractiveGamesPage() {
             >
               <KeyRound size={14} />
               <span>
-                Active Streamer Key: <strong>{activeStreamer.displayHandle}</strong> (
-                <code>{activeStreamer.key}</code>)
+                Authorized Streamer: <strong>{activeStreamer.displayHandle}</strong>
               </span>
             </div>
           )}
