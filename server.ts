@@ -249,6 +249,216 @@ function extractCommentText(raw: any): string {
   return '';
 }
 
+interface BufferedEvent {
+  id: string;
+  timestamp: number;
+  type: 'chat-message' | 'like-event' | 'gift-event';
+  payload: Record<string, any>;
+}
+
+const recentEvents: BufferedEvent[] = [];
+
+function recordAndEmitEvent(
+  type: 'chat-message' | 'like-event' | 'gift-event',
+  payload: Record<string, any>
+) {
+  const timestamp = Number(payload.timestamp) || Date.now();
+  const eventId =
+    payload.eventId ||
+    `srv_${timestamp}_${Math.random().toString(36).substring(2, 8)}`;
+  const enriched = { ...payload, eventId, timestamp };
+
+  recentEvents.push({
+    id: eventId,
+    timestamp,
+    type,
+    payload: enriched,
+  });
+  if (recentEvents.length > 100) {
+    recentEvents.shift();
+  }
+
+  io.emit(type, enriched);
+  return enriched;
+}
+
+function startTikTokSession(options: {
+  rawUsername: unknown;
+  isTestMode?: boolean;
+  provider?: string;
+  socket?: any;
+}): { ok: boolean; error?: string; username?: string; roomId?: string; provider?: string } {
+  const { rawUsername, isTestMode, provider, socket } = options;
+  if (provider === 'bettertok' || provider === 'tikfinity') {
+    currentProvider = provider;
+  }
+
+  if (tiktokConn) {
+    try {
+      tiktokConn.disconnect();
+    } catch {
+      // ignore
+    }
+    tiktokConn = null;
+  }
+
+  if (!rawUsername || !String(rawUsername).trim()) {
+    if (socket) {
+      socket.emit('tiktok-error', 'Username is required');
+    }
+    return { ok: false, error: 'Username is required' };
+  }
+
+  const cleanUsername = String(rawUsername).trim().replace(/^@+/, '');
+
+  // Immediately mark connected and notify clients so no live website ever hangs on "Connecting..."
+  currentConnectedUsername = cleanUsername;
+  currentRoomId = isTestMode ? 'TEST_SIMULATION_ROOM' : 'LIVE_RELAY';
+
+  const initialPayload = {
+    username: cleanUsername,
+    roomId: currentRoomId,
+    isTestMode: Boolean(isTestMode),
+    provider: currentProvider,
+  };
+
+  if (socket) {
+    socket.emit('tiktok-connected', initialPayload);
+  }
+  io.emit('tiktok-connected', initialPayload);
+  io.emit('tiktok-status', {
+    connected: true,
+    ...initialPayload,
+  });
+
+  if (isTestMode) {
+    return {
+      ok: true,
+      username: cleanUsername,
+      roomId: currentRoomId,
+      provider: currentProvider,
+    };
+  }
+
+  // Attempt direct TikTok Live room scrape asynchronously in background with 6s timeout
+  try {
+    tiktokConn = new TikTokLiveConnection(cleanUsername, {
+      processInitialData: false,
+    });
+    const activeConn = tiktokConn;
+
+    const connectTimeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Direct room scrape timed out after 6s')), 6000)
+    );
+
+    Promise.race([activeConn.connect(), connectTimeout])
+      .then((state: any) => {
+        if (tiktokConn !== activeConn) return;
+        currentConnectedUsername = cleanUsername;
+        currentRoomId = state?.roomId || 'LIVE';
+        io.emit('tiktok-status', {
+          connected: true,
+          username: cleanUsername,
+          roomId: currentRoomId,
+          provider: currentProvider,
+        });
+      })
+      .catch((err) => {
+        console.warn(
+          `[TikTok Live] Direct room scrape for @${cleanUsername} unavailable (${err?.message || 'offline'}); remaining active on Live Relay (${currentProvider}).`
+        );
+        if (tiktokConn === activeConn) {
+          try {
+            activeConn.disconnect();
+          } catch {}
+          tiktokConn = null;
+        }
+      });
+
+    activeConn.on(WebcastEvent.CHAT, (data: any) => {
+      const comment = extractCommentText(data);
+      if (!comment) return;
+      const { uniqueId, nickname } = extractUserIdentity(data);
+      const profilePictureUrl = extractProfilePicture(data, uniqueId || nickname);
+      recordAndEmitEvent('chat-message', {
+        uniqueId,
+        nickname,
+        comment,
+        profilePictureUrl,
+      });
+    });
+
+    activeConn.on(WebcastEvent.LIKE, (data: any) => {
+      const { uniqueId, nickname } = extractUserIdentity(data);
+      const likeCount = Number(data?.likeCount ?? data?.count) || 1;
+      const totalLikeCount = Number(data?.totalLikeCount ?? data?.total) || likeCount;
+      const profilePictureUrl = extractProfilePicture(data, uniqueId || nickname);
+      recordAndEmitEvent('like-event', {
+        uniqueId,
+        nickname,
+        likeCount,
+        totalLikeCount,
+        profilePictureUrl,
+      });
+    });
+
+    activeConn.on(WebcastEvent.GIFT, (data: any) => {
+      const { uniqueId, nickname } = extractUserIdentity(data);
+      const giftName =
+        data?.giftName || data?.gift?.name || data?.giftDetails?.giftName || 'Gift';
+      const diamondCount =
+        Number(data?.diamondCount ?? data?.gift?.diamondCount ?? data?.giftDetails?.diamondCount) || 1;
+      const repeatCount = Number(data?.repeatCount) || 1;
+      const repeatEnd = data?.repeatEnd !== false && data?.repeatEnd !== 0;
+      const profilePictureUrl = extractProfilePicture(data, uniqueId || nickname);
+      recordAndEmitEvent('gift-event', {
+        uniqueId,
+        nickname,
+        giftName,
+        diamondCount,
+        repeatCount,
+        repeatEnd,
+        profilePictureUrl,
+      });
+    });
+
+    activeConn.on(ControlEvent.DISCONNECTED, () => {
+      // Keep relay session active so Tikfinity / BetterTok webhooks continue working
+      if (tiktokConn === activeConn) {
+        tiktokConn = null;
+      }
+    });
+
+    activeConn.on(ControlEvent.ERROR, (err: any) => {
+      console.warn('TikTok connection warning:', err?.info || err);
+    });
+  } catch {
+    // Relay session is already active
+  }
+
+  return {
+    ok: true,
+    username: cleanUsername,
+    roomId: currentRoomId,
+    provider: currentProvider,
+  };
+}
+
+function stopTikTokSession() {
+  if (tiktokConn) {
+    try {
+      tiktokConn.disconnect();
+    } catch {
+      // ignore
+    }
+    tiktokConn = null;
+  }
+  currentConnectedUsername = null;
+  currentRoomId = null;
+  io.emit('tiktok-disconnected');
+  io.emit('tiktok-status', { connected: false, username: '', roomId: '' });
+}
+
 io.on('connection', (socket) => {
   socket.emit('tiktok-status', {
     connected: Boolean(tiktokConn || currentConnectedUsername),
@@ -271,187 +481,17 @@ io.on('connection', (socket) => {
   socket.on('connect-tiktok', (payload: any) => {
     const rawUsername = typeof payload === 'string' ? payload : payload?.username;
     const isTestMode = typeof payload === 'object' && Boolean(payload?.isTestMode);
-    if (payload?.provider === 'bettertok' || payload?.provider === 'tikfinity') {
-      currentProvider = payload.provider;
-    }
-
-    if (tiktokConn) {
-      try {
-        tiktokConn.disconnect();
-      } catch {
-        // ignore
-      }
-      tiktokConn = null;
-      currentConnectedUsername = null;
-      currentRoomId = null;
-    }
-
-    if (!rawUsername || !String(rawUsername).trim()) {
-      socket.emit('tiktok-error', 'Username is required');
-      return;
-    }
-
-    const cleanUsername = String(rawUsername).trim().startsWith('@')
-      ? String(rawUsername).trim().substring(1)
-      : String(rawUsername).trim();
-
-    if (isTestMode) {
-      currentConnectedUsername = cleanUsername;
-      currentRoomId = 'TEST_SIMULATION_ROOM';
-      socket.emit('tiktok-connected', {
-        username: cleanUsername,
-        roomId: currentRoomId,
-        isTestMode: true,
-        provider: currentProvider,
-      });
-      io.emit('tiktok-status', {
-        connected: true,
-        username: cleanUsername,
-        roomId: currentRoomId,
-        isTestMode: true,
-        provider: currentProvider,
-      });
-      return;
-    }
-
-    try {
-      tiktokConn = new TikTokLiveConnection(cleanUsername, {
-        processInitialData: false,
-      });
-      const activeConn = tiktokConn;
-      activeConn
-        .connect()
-        .then((state) => {
-          if (tiktokConn !== activeConn) return;
-          currentConnectedUsername = cleanUsername;
-          currentRoomId = state.roomId || 'LIVE';
-          socket.emit('tiktok-connected', {
-            username: cleanUsername,
-            roomId: currentRoomId,
-            provider: currentProvider,
-          });
-          io.emit('tiktok-status', {
-            connected: true,
-            username: cleanUsername,
-            roomId: currentRoomId,
-            provider: currentProvider,
-          });
-        })
-        .catch((err) => {
-          console.warn(
-            `[TikTok Live] Direct room scrape for @${cleanUsername} unavailable (${err?.message || 'offline'}); activating Live Relay room (${currentProvider}).`
-          );
-          if (tiktokConn === activeConn) {
-            tiktokConn = null;
-          }
-          currentConnectedUsername = cleanUsername;
-          currentRoomId = 'LIVE_RELAY';
-          socket.emit('tiktok-connected', {
-            username: cleanUsername,
-            roomId: currentRoomId,
-            relayFallback: true,
-            provider: currentProvider,
-          });
-          io.emit('tiktok-status', {
-            connected: true,
-            username: cleanUsername,
-            roomId: currentRoomId,
-            provider: currentProvider,
-          });
-        });
-
-      activeConn.on(WebcastEvent.CHAT, (data: any) => {
-        const comment = extractCommentText(data);
-        if (!comment) return;
-        const { uniqueId, nickname } = extractUserIdentity(data);
-        const profilePictureUrl = extractProfilePicture(data, uniqueId || nickname);
-        console.log(`[TikTok Chat] ${nickname} (@${uniqueId}): "${comment}"`);
-        io.emit('chat-message', {
-          uniqueId,
-          nickname,
-          comment,
-          profilePictureUrl,
-        });
-      });
-
-      activeConn.on(WebcastEvent.LIKE, (data: any) => {
-        const { uniqueId, nickname } = extractUserIdentity(data);
-        const likeCount = Number(data?.likeCount ?? data?.count) || 1;
-        const totalLikeCount = Number(data?.totalLikeCount ?? data?.total) || likeCount;
-        const profilePictureUrl = extractProfilePicture(data, uniqueId || nickname);
-        io.emit('like-event', {
-          uniqueId,
-          nickname,
-          likeCount,
-          totalLikeCount,
-          profilePictureUrl,
-        });
-      });
-
-      activeConn.on(WebcastEvent.GIFT, (data: any) => {
-        const { uniqueId, nickname } = extractUserIdentity(data);
-        const giftName =
-          data?.giftName || data?.gift?.name || data?.giftDetails?.giftName || 'Gift';
-        const diamondCount =
-          Number(data?.diamondCount ?? data?.gift?.diamondCount ?? data?.giftDetails?.diamondCount) || 1;
-        const repeatCount = Number(data?.repeatCount) || 1;
-        const repeatEnd = data?.repeatEnd !== false && data?.repeatEnd !== 0;
-        const profilePictureUrl = extractProfilePicture(data, uniqueId || nickname);
-        io.emit('gift-event', {
-          uniqueId,
-          nickname,
-          giftName,
-          diamondCount,
-          repeatCount,
-          repeatEnd,
-          profilePictureUrl,
-        });
-      });
-
-      activeConn.on(ControlEvent.DISCONNECTED, () => {
-        if (tiktokConn === activeConn) {
-          tiktokConn = null;
-          currentConnectedUsername = null;
-          currentRoomId = null;
-        }
-        io.emit('tiktok-disconnected');
-        io.emit('tiktok-status', { connected: false, username: '', roomId: '' });
-      });
-
-      activeConn.on(ControlEvent.ERROR, (err: any) => {
-        console.warn('TikTok connection warning:', err?.info || err);
-      });
-    } catch (err: any) {
-      currentConnectedUsername = cleanUsername;
-      currentRoomId = 'LIVE_RELAY';
-      socket.emit('tiktok-connected', {
-        username: cleanUsername,
-        roomId: currentRoomId,
-        relayFallback: true,
-        provider: currentProvider,
-      });
-      io.emit('tiktok-status', {
-        connected: true,
-        username: cleanUsername,
-        roomId: currentRoomId,
-        provider: currentProvider,
-      });
-    }
+    const provider = typeof payload === 'object' ? payload?.provider : undefined;
+    startTikTokSession({
+      rawUsername,
+      isTestMode,
+      provider,
+      socket,
+    });
   });
 
   socket.on('disconnect-tiktok', () => {
-    if (tiktokConn) {
-      try {
-        tiktokConn.disconnect();
-      } catch {
-        // ignore
-      }
-      tiktokConn = null;
-    }
-    currentConnectedUsername = null;
-    currentRoomId = null;
-    io.emit('tiktok-disconnected');
-    io.emit('tiktok-status', { connected: false, username: '', roomId: '' });
+    stopTikTokSession();
   });
 
   socket.on('chat-message', (data) => {
@@ -459,7 +499,7 @@ io.on('connection', (socket) => {
     if (!comment) return;
     const { uniqueId, nickname } = extractUserIdentity(data);
     const profilePictureUrl = extractProfilePicture(data, uniqueId || nickname);
-    io.emit('chat-message', {
+    recordAndEmitEvent('chat-message', {
       ...data,
       uniqueId,
       nickname,
@@ -471,7 +511,7 @@ io.on('connection', (socket) => {
   socket.on('like-event', (data) => {
     const { uniqueId, nickname } = extractUserIdentity(data);
     const profilePictureUrl = extractProfilePicture(data, uniqueId || nickname);
-    io.emit('like-event', {
+    recordAndEmitEvent('like-event', {
       ...data,
       uniqueId,
       nickname,
@@ -484,7 +524,7 @@ io.on('connection', (socket) => {
   socket.on('gift-event', (data) => {
     const { uniqueId, nickname } = extractUserIdentity(data);
     const profilePictureUrl = extractProfilePicture(data, uniqueId || nickname);
-    io.emit('gift-event', {
+    recordAndEmitEvent('gift-event', {
       ...data,
       uniqueId,
       nickname,
@@ -523,7 +563,7 @@ function handleWebhookEvent(
     const diamondCount =
       Number(rawPayload.diamondCount ?? rawPayload.diamonds ?? rawPayload.gift?.diamondCount) || 1;
     const repeatCount = Number(rawPayload.repeatCount ?? rawPayload.repeat_count ?? rawPayload.count) || 1;
-    io.emit('gift-event', {
+    recordAndEmitEvent('gift-event', {
       uniqueId,
       nickname,
       giftName,
@@ -540,7 +580,7 @@ function handleWebhookEvent(
   if (eventType === 'like' || rawPayload.likeCount || rawPayload.like_count) {
     const likeCount = Number(rawPayload.likeCount ?? rawPayload.like_count ?? rawPayload.count) || 1;
     const totalLikeCount = Number(rawPayload.totalLikeCount ?? rawPayload.total) || likeCount;
-    io.emit('like-event', {
+    recordAndEmitEvent('like-event', {
       uniqueId,
       nickname,
       likeCount,
@@ -554,7 +594,7 @@ function handleWebhookEvent(
   // Otherwise process as a chat message
   const comment = extractCommentText(rawPayload);
   if (comment) {
-    io.emit('chat-message', {
+    recordAndEmitEvent('chat-message', {
       uniqueId,
       nickname,
       comment,
@@ -574,6 +614,45 @@ function handleWebhookEvent(
 
   res.status(400).json({ error: 'Missing chat comment or event payload' });
 }
+
+// REST connect & disconnect endpoints (fallback when WebSockets are blocked on live hosting)
+app.post('/api/tiktok/connect', (req, res) => {
+  const body = { ...(req.query || {}), ...(req.body || {}) };
+  const result = startTikTokSession({
+    rawUsername: body.username,
+    isTestMode: Boolean(body.isTestMode),
+    provider: body.provider,
+  });
+  if (!result.ok) {
+    res.status(400).json(result);
+    return;
+  }
+  res.json({
+    ok: true,
+    connected: true,
+    username: result.username,
+    roomId: result.roomId,
+    provider: result.provider,
+  });
+});
+
+app.post('/api/tiktok/disconnect', (_req, res) => {
+  stopTikTokSession();
+  res.json({ ok: true, connected: false });
+});
+
+// Poll recent events (fallback when WebSockets are blocked on live hosting)
+app.get('/api/tiktok/events', (req, res) => {
+  const since = Number(req.query.since) || 0;
+  const events = recentEvents.filter((ev) => ev.timestamp > since);
+  res.json({
+    ok: true,
+    connected: Boolean(tiktokConn || currentConnectedUsername),
+    username: currentConnectedUsername || '',
+    roomId: currentRoomId || '',
+    events,
+  });
+});
 
 // REST webhook endpoints (supporting both POST and GET for Tikfinity, BetterTok, and TikTok relays)
 app.post('/api/tiktok/event', (req, res) => handleWebhookEvent('tiktok', req, res));
@@ -626,7 +705,7 @@ async function setupViteOrStatic() {
     });
   }
 
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT) || 3000;
   httpServer.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
   });

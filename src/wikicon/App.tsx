@@ -17,6 +17,12 @@ import {
   setActiveInteractiveStreamerSession,
   clearActiveInteractiveStreamerSession,
 } from '@/lib/interactive-key-auth';
+import {
+  triggerResilientConnect,
+  emitResilientEvent,
+  createEventDeduplicator,
+  attachResilientChatListeners,
+} from '@/lib/live-chat-bridge';
 import './index.css';
 import confetti from 'canvas-confetti';
 import {
@@ -334,8 +340,12 @@ export function App() {
       })
       .catch(() => {});
 
-    const socket = io();
+    const socket = io({
+      reconnectionAttempts: 10,
+      timeout: 5000,
+    });
     socketRef.current = socket;
+    const deduplicator = createEventDeduplicator();
 
     socket.on('round:state', (nextRound: RoundState) => {
       setRound(nextRound);
@@ -346,24 +356,19 @@ export function App() {
       recordActivity();
       setTiktokConnState('connected');
       setConnectedUsername(data.username);
-      setConnectedRoomId(data.roomId || null);
+      setConnectedRoomId(data.roomId || 'LIVE_RELAY');
       setTiktokError(null);
-      showToast(`Connected to TikTok Live @${data.username}`, 'green');
     });
 
     socket.on(
       'tiktok-status',
-      (data: { connected: boolean; username?: string | null; isTestMode?: boolean }) => {
+      (data: { connected: boolean; username?: string | null; isTestMode?: boolean; roomId?: string }) => {
         recordActivity();
         if (data.connected) {
           setTiktokConnState('connected');
           if (data.username) setConnectedUsername(data.username);
-          setConnectedRoomId((prev) => prev || (data.isTestMode ? 'TEST_MODE' : 'LIVE'));
+          setConnectedRoomId((prev) => data.roomId || prev || (data.isTestMode ? 'TEST_MODE' : 'LIVE'));
           setTiktokError(null);
-        } else {
-          setTiktokConnState('disconnected');
-          setConnectedUsername(null);
-          setConnectedRoomId(null);
         }
       }
     );
@@ -379,82 +384,79 @@ export function App() {
       setConnectedRoomId(null);
     });
 
-    socket.on(
-      'chat-message',
-      (data: {
-        uniqueId?: string;
-        nickname?: string;
-        comment?: string;
-        profilePictureUrl?: string;
-      }) => {
-        recordActivity();
-        const rawComment = String(data.comment || '');
-        const cleanUniqueId = (data.uniqueId || 'viewer').replace(/^@+/, '');
-        const cleanNickname = (data.nickname || cleanUniqueId || 'Viewer').replace(/^@+/, '');
-        const rawPfp = (data.profilePictureUrl || '').trim();
-        const normalizedPfp = rawPfp.startsWith('//') ? `https:${rawPfp}` : rawPfp;
-        const validPfp = normalizedPfp.startsWith('http')
-          ? normalizedPfp
-          : `https://i.pravatar.cc/150?u=${encodeURIComponent(cleanUniqueId || cleanNickname)}`;
+    const processChatEvent = (data: {
+      uniqueId?: string;
+      nickname?: string;
+      comment?: string;
+      profilePictureUrl?: string;
+    }) => {
+      recordActivity();
+      const rawComment = String(data.comment || '');
+      const cleanUniqueId = (data.uniqueId || 'viewer').replace(/^@+/, '');
+      const cleanNickname = (data.nickname || cleanUniqueId || 'Viewer').replace(/^@+/, '');
+      const rawPfp = (data.profilePictureUrl || '').trim();
+      const normalizedPfp = rawPfp.startsWith('//') ? `https:${rawPfp}` : rawPfp;
+      const validPfp = normalizedPfp.startsWith('http')
+        ? normalizedPfp
+        : `https://i.pravatar.cc/150?u=${encodeURIComponent(cleanUniqueId || cleanNickname)}`;
 
-        const msg: TikTokChatMessage = {
-          id: `chat_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-          uniqueId: cleanUniqueId,
-          nickname: cleanNickname,
-          comment: rawComment,
-          profilePictureUrl: validPfp,
-          timestamp: Date.now(),
-        };
-        // Append all chat messages (even if not part of puzzle, multi-word, or numbers)
-        setChatMessages((prev) => [...prev.slice(-199), msg]);
+      const msg: TikTokChatMessage = {
+        id: `chat_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        uniqueId: cleanUniqueId,
+        nickname: cleanNickname,
+        comment: rawComment,
+        profilePictureUrl: validPfp,
+        timestamp: Date.now(),
+      };
+      // Append all chat messages (even if not part of puzzle, multi-word, or numbers)
+      setChatMessages((prev) => [...prev.slice(-199), msg]);
 
-        // Evaluate chat message words against the active WikiContexto round
-        if (internalRoundRef.current && rawComment.trim()) {
-          if (rawComment.trim().toLowerCase() === '!hint') {
-            const hintWord = revealWikiconHint(internalRoundRef.current);
-            if (hintWord) {
-              soundFX.playWordHit('UNCOMMON');
-              setRound(serializeWikiconRound(internalRoundRef.current));
-              showToast(
-                `${msg.nickname} triggered !hint → "${hintWord.toUpperCase()}"`,
-                'gold'
-              );
-            }
-            return;
+      // Evaluate chat message words against the active WikiContexto round
+      if (internalRoundRef.current && rawComment.trim()) {
+        if (rawComment.trim().toLowerCase() === '!hint') {
+          const hintWord = revealWikiconHint(internalRoundRef.current);
+          if (hintWord) {
+            soundFX.playWordHit('UNCOMMON');
+            setRound(serializeWikiconRound(internalRoundRef.current));
+            showToast(
+              `${msg.nickname} triggered !hint → "${hintWord.toUpperCase()}"`,
+              'gold'
+            );
           }
+          return;
+        }
 
-          const prevAnnouncementId = internalRoundRef.current.lastAnnouncement?.id;
-          const anyUpdated = evaluateTikTokChatIntoWikiconRound(internalRoundRef.current, {
-            uniqueId: msg.uniqueId,
-            nickname: msg.nickname,
-            comment: rawComment,
-            profilePictureUrl: msg.profilePictureUrl,
-          });
+        const prevAnnouncementId = internalRoundRef.current.lastAnnouncement?.id;
+        const anyUpdated = evaluateTikTokChatIntoWikiconRound(internalRoundRef.current, {
+          uniqueId: msg.uniqueId,
+          nickname: msg.nickname,
+          comment: rawComment,
+          profilePictureUrl: msg.profilePictureUrl,
+        });
 
-          if (anyUpdated) {
-            const nextRound = serializeWikiconRound(internalRoundRef.current);
-            setRound(nextRound);
-            const ann = internalRoundRef.current.lastAnnouncement;
-            if (ann && ann.id !== prevAnnouncementId) {
-              soundFX.playWordHit(ann.rarity);
-              showToast(
-                `${msg.nickname} uncovered "${ann.word}" (#${ann.rank} · +${ann.pointsEarned.toLocaleString()} pts)`,
-                ann.rarity === 'TITLE' ? 'gold' : 'green'
-              );
-            } else {
-              soundFX.playKeycapTap(3);
-            }
+        if (anyUpdated) {
+          const nextRound = serializeWikiconRound(internalRoundRef.current);
+          setRound(nextRound);
+          const ann = internalRoundRef.current.lastAnnouncement;
+          if (ann && ann.id !== prevAnnouncementId) {
+            soundFX.playWordHit(ann.rarity);
+            showToast(
+              `${msg.nickname} uncovered "${ann.word}" (#${ann.rank} · +${ann.pointsEarned.toLocaleString()} pts)`,
+              ann.rarity === 'TITLE' ? 'gold' : 'green'
+            );
+          } else {
+            soundFX.playKeycapTap(3);
           }
         }
       }
-    );
+    };
 
-    socket.on('like-event', (data: TikTokLikeEvent) => {
+    const processLikeEvent = (data: TikTokLikeEvent) => {
       recordActivity();
       setTotalLikesCount((prev) => prev + (Number(data.likeCount) || 1));
-    });
+    };
 
-    socket.on('gift-event', (data: TikTokGiftEvent) => {
+    const processGiftEvent = (data: TikTokGiftEvent) => {
       recordActivity();
       if (data.repeatEnd === false) return;
       const count = Number(data.repeatCount) || 1;
@@ -475,9 +477,35 @@ export function App() {
           'gold'
         );
       }
+    };
+
+    socket.on('chat-message', (data: any) => {
+      if (deduplicator.shouldProcess('chat', data)) {
+        processChatEvent(data);
+      }
+    });
+
+    socket.on('like-event', (data: TikTokLikeEvent) => {
+      if (deduplicator.shouldProcess('like', data)) {
+        processLikeEvent(data);
+      }
+    });
+
+    socket.on('gift-event', (data: TikTokGiftEvent) => {
+      if (deduplicator.shouldProcess('gift', data)) {
+        processGiftEvent(data);
+      }
+    });
+
+    const detachBridge = attachResilientChatListeners({
+      onChat: processChatEvent,
+      onLike: processLikeEvent,
+      onGift: processGiftEvent,
+      deduplicator,
     });
 
     return () => {
+      detachBridge();
       socket.disconnect();
     };
   }, [recordActivity, showToast]);
@@ -548,19 +576,42 @@ export function App() {
 
   // Emit connect-tiktok / disconnect-tiktok
   const handleConnectTikTok = (username: string, isTestMode = false) => {
-    if (!socketRef.current) return;
     recordActivity();
-    setTiktokConnState('connecting');
+    const cleaned = username.trim().replace(/^@+/, '') || 'streamer';
+    let savedProvider: 'tikfinity' | 'bettertok' = 'tikfinity';
+    try {
+      const p = localStorage.getItem('chat_integration_provider');
+      if (p === 'bettertok' || p === 'tikfinity') savedProvider = p;
+    } catch {}
+
+    setTiktokConnState('connected');
+    setConnectedUsername(cleaned);
+    setConnectedRoomId(isTestMode ? 'TEST_SIMULATION_ROOM' : 'LIVE_RELAY');
     setTiktokError(null);
-    socketRef.current.emit('connect-tiktok', {
-      username: username.replace(/^@+/, ''),
-      isTestMode,
-    });
+    showToast(`Connected to TikTok Live @${cleaned}`, 'green');
+
+    triggerResilientConnect(
+      socketRef.current,
+      {
+        username: cleaned,
+        isTestMode,
+        provider: savedProvider,
+      },
+      ({ username: uname, roomId }) => {
+        setTiktokConnState('connected');
+        setConnectedUsername(uname || cleaned);
+        if (roomId) setConnectedRoomId(roomId);
+      }
+    );
   };
 
   const handleDisconnectTikTok = () => {
-    if (!socketRef.current) return;
     recordActivity();
+    setTiktokConnState('disconnected');
+    setConnectedUsername(null);
+    setConnectedRoomId(null);
+    fetch('/api/tiktok/disconnect', { method: 'POST' }).catch(() => {});
+    if (!socketRef.current) return;
     socketRef.current.emit('disconnect-tiktok');
   };
 
@@ -1809,15 +1860,15 @@ export function App() {
         onDisconnectTikTok={handleDisconnectTikTok}
         onSimulateChat={(data) => {
           recordActivity();
-          socketRef.current?.emit('chat-message', data);
+          emitResilientEvent(socketRef.current, 'chat-message', data);
         }}
         onSimulateLike={(data) => {
           recordActivity();
-          socketRef.current?.emit('like-event', data);
+          emitResilientEvent(socketRef.current, 'like-event', data);
         }}
         onSimulateGift={(data) => {
           recordActivity();
-          socketRef.current?.emit('gift-event', data);
+          emitResilientEvent(socketRef.current, 'gift-event', data);
         }}
         totalLikesCount={totalLikesCount}
         totalGiftsCount={totalGiftsCount}

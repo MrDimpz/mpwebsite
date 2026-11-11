@@ -3,6 +3,7 @@ import { io, Socket } from 'socket.io-client';
 import { Eye, Gift, Heart, Radio, Send, Terminal, Wifi, WifiOff, AlertTriangle, X, Check } from 'lucide-react';
 import { LiveChatItem, PublicGameState, SearchWordSlot, TikTokConnectionStatus } from '../shared/types';
 import { getOrInitTabSessionId } from '../utils/session';
+import { triggerResilientConnect, emitResilientEvent } from '@/lib/live-chat-bridge';
 
 export interface SocketChatEvent {
   uniqueId: string;
@@ -291,18 +292,36 @@ export const TikTokLivePanel: React.FC<TikTokLivePanelProps> = ({
   const handleConnect = (e: React.FormEvent, isTestMode = false) => {
     e.preventDefault();
     const cleaned = username.trim().replace(/^@+/, '');
-    if (!cleaned || !socketRef.current) return;
-    setConnState('connecting');
+    if (!cleaned) return;
+    const defaultRoom = isTestMode ? 'TEST_SIMULATION_ROOM' : 'LIVE_RELAY';
+    setConnState('connected');
+    setConnectedInfo({ username: cleaned, roomId: defaultRoom });
     setErrorMessage(null);
-    socketRef.current.emit('connect-tiktok', {
-      username: cleaned,
-      isTestMode,
-      key: authorizedStreamer?.key,
-      sessionId: getOrInitTabSessionId(),
-    });
+    onConnChangeRef.current?.(true, cleaned);
+
+    triggerResilientConnect(
+      socketRef.current,
+      {
+        username: cleaned,
+        isTestMode,
+        provider: chatProvider,
+        key: authorizedStreamer?.key,
+        sessionId: getOrInitTabSessionId(),
+      },
+      ({ username: uname, roomId }) => {
+        setConnState('connected');
+        setConnectedInfo({ username: uname || cleaned, roomId: roomId || defaultRoom });
+        setErrorMessage(null);
+        onConnChangeRef.current?.(true, uname || cleaned);
+      }
+    );
   };
 
   const handleDisconnect = () => {
+    setConnState('disconnected');
+    setConnectedInfo(null);
+    onConnChangeRef.current?.(false, null);
+    fetch('/api/tiktok/disconnect', { method: 'POST' }).catch(() => {});
     if (!socketRef.current) return;
     socketRef.current.emit('disconnect-tiktok', {
       username: authorizedStreamer?.username || username.trim().replace(/^@+/, ''),
@@ -318,7 +337,7 @@ export const TikTokLivePanel: React.FC<TikTokLivePanelProps> = ({
   };
 
   const emitSimulatedWord = (word: string) => {
-    if (!socketRef.current || !word.trim()) return;
+    if (!word.trim()) return;
     const viewer = getSelectedViewer();
     const payload = {
       uniqueId: viewer.uniqueId,
@@ -327,19 +346,18 @@ export const TikTokLivePanel: React.FC<TikTokLivePanelProps> = ({
       profilePictureUrl: viewer.profilePictureUrl,
       streamerUsername: authorizedStreamer?.username || username.trim(),
     };
-    socketRef.current.emit('chat-message', payload);
+    emitResilientEvent(socketRef.current, 'chat-message', payload);
   };
 
-  // Simulate / Debug handlers emitting directly via socket.emit(...)
+  // Simulate / Debug handlers emitting via emitResilientEvent
   const handleSimulateChatSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!simComment.trim() || !socketRef.current) return;
+    if (!simComment.trim()) return;
     emitSimulatedWord(simComment.trim());
     setSimComment('');
   };
 
   const handleSimulateSmartWordGuess = (tierType: 'title' | 'common' | 'rare') => {
-    if (!socketRef.current) return;
     const allSlots = gameState?.searchWords || [];
     const tierSlots = allSlots.filter(
       (s) => s.tier === tierType && !s.revealed && (s.unmaskedWord || s.word)
@@ -351,7 +369,7 @@ export const TikTokLivePanel: React.FC<TikTokLivePanelProps> = ({
     const chosen = (chosenSlot?.unmaskedWord || chosenSlot?.word || 'planet').toLowerCase();
     const viewer =
       SAMPLE_TIKTOK_VIEWERS[Math.floor(Math.random() * SAMPLE_TIKTOK_VIEWERS.length)];
-    socketRef.current.emit('chat-message', {
+    emitResilientEvent(socketRef.current, 'chat-message', {
       uniqueId: viewer.uniqueId,
       nickname: viewer.nickname,
       comment: chosen,
@@ -361,7 +379,6 @@ export const TikTokLivePanel: React.FC<TikTokLivePanelProps> = ({
   };
 
   const handleSimulateLike = () => {
-    if (!socketRef.current) return;
     const viewer = getSelectedViewer();
     const payload = {
       uniqueId: viewer.uniqueId,
@@ -371,11 +388,10 @@ export const TikTokLivePanel: React.FC<TikTokLivePanelProps> = ({
       profilePictureUrl: viewer.profilePictureUrl,
       streamerUsername: authorizedStreamer?.username || username.trim(),
     };
-    socketRef.current.emit('like-event', payload);
+    emitResilientEvent(socketRef.current, 'like-event', payload);
   };
 
   const handleSimulateGift = () => {
-    if (!socketRef.current) return;
     const viewer = getSelectedViewer();
     const payload = {
       uniqueId: viewer.uniqueId,
@@ -387,7 +403,7 @@ export const TikTokLivePanel: React.FC<TikTokLivePanelProps> = ({
       profilePictureUrl: viewer.profilePictureUrl,
       streamerUsername: authorizedStreamer?.username || username.trim(),
     };
-    socketRef.current.emit('gift-event', payload);
+    emitResilientEvent(socketRef.current, 'gift-event', payload);
   };
 
   if (!isOpen) return null;

@@ -64,6 +64,12 @@ import {
   saveHighScoreToFirestore,
 } from '@/squared/utils/firebase';
 import { io, Socket } from 'socket.io-client';
+import {
+  triggerResilientConnect,
+  emitResilientEvent,
+  createEventDeduplicator,
+  attachResilientChatListeners,
+} from '@/lib/live-chat-bridge';
 
 type GameState = 'TITLE_MENU' | 'PLAYING' | 'PAUSED' | 'VICTORY';
 
@@ -643,31 +649,30 @@ export default function App() {
     []
   );
 
-  // Connect to persistent Socket.IO server (chat events only)
+  // Connect to persistent Socket.IO server & resilient live bridge (chat events only)
   useEffect(() => {
-    const newSocket = io();
+    const newSocket = io({
+      reconnectionAttempts: 10,
+      timeout: 5000,
+    });
     setSocket(newSocket);
+    const deduplicator = createEventDeduplicator();
 
     newSocket.on('tiktok-connected', ({ username, roomId: rId }: { username: string; roomId?: string }) => {
       setIsLiveConnected(true);
       setTiktokUsername(username);
-      setRoomId(rId || '');
+      setRoomId(rId || 'LIVE_RELAY');
       setTiktokError(null);
       try {
         localStorage.setItem('missing_piece_tiktok_username', username);
       } catch {
         // ignore
       }
-      showToast(
-        `TikTok LIVE Connected: @${username}`,
-        'emerald',
-        'Leaderboard Active · Viewer chat guesses will register live'
-      );
     });
 
     newSocket.on('tiktok-status', (status: { connected: boolean; username: string; roomId: string }) => {
-      if (status) {
-        setIsLiveConnected(Boolean(status.connected));
+      if (status && status.connected) {
+        setIsLiveConnected(true);
         if (status.username) setTiktokUsername(status.username);
         if (status.roomId) setRoomId(status.roomId);
       }
@@ -687,10 +692,20 @@ export default function App() {
 
     // Actual chat messages only (likes & gifts ignored)
     newSocket.on('chat-message', (data: any) => {
-      handleIncomingChatMessage(data);
+      if (deduplicator.shouldProcess('chat', data)) {
+        handleIncomingChatMessage(data);
+      }
+    });
+
+    const detachBridge = attachResilientChatListeners({
+      onChat: (norm) => {
+        handleIncomingChatMessage(norm);
+      },
+      deduplicator,
     });
 
     return () => {
+      detachBridge();
       newSocket.disconnect();
     };
   }, [handleIncomingChatMessage, showToast]);
@@ -706,18 +721,41 @@ export default function App() {
         // ignore
       }
 
+      let savedProvider: 'tikfinity' | 'bettertok' = 'tikfinity';
+      try {
+        const p = localStorage.getItem('chat_integration_provider');
+        if (p === 'bettertok' || p === 'tikfinity') savedProvider = p;
+      } catch {}
+
+      // Immediately activate live state so the UI never hangs on "Connecting..."
+      setIsLiveConnected(true);
+      setRoomId(isTestMode ? 'TEST_SIMULATION_ROOM' : 'LIVE_RELAY');
+
+      triggerResilientConnect(
+        socket,
+        {
+          username: clean,
+          isTestMode,
+          provider: savedProvider,
+        },
+        ({ roomId: rId }) => {
+          setIsLiveConnected(true);
+          if (rId) setRoomId(rId);
+        }
+      );
+
       if (isTestMode) {
-        setIsLiveConnected(true);
-        setRoomId('TEST_SIMULATION_ROOM');
-        socket?.emit('connect-tiktok', { username: clean, isTestMode: true });
         showToast(
           `Test Mode Active: Connected as @${clean}`,
           'gold',
           'Leaderboard & Chat Feed active for manual testing!'
         );
       } else {
-        socket?.emit('connect-tiktok', { username: clean, isTestMode: false });
-        showToast(`Connecting @${clean} to TikTok LIVE...`, 'neutral');
+        showToast(
+          `TikTok LIVE Connected: @${clean}`,
+          'emerald',
+          `Leaderboard & ${savedProvider === 'bettertok' ? 'BetterTok' : 'Tikfinity'} Relay Active!`
+        );
       }
 
       setIsConnectModalOpen(false);
@@ -730,6 +768,7 @@ export default function App() {
 
   const handleDisconnectTikTok = useCallback(() => {
     socket?.emit('disconnect-tiktok');
+    fetch('/api/tiktok/disconnect', { method: 'POST' }).catch(() => {});
     setIsLiveConnected(false);
     setRoomId('');
     showToast('Disconnected from TikTok LIVE', 'neutral');
@@ -744,7 +783,7 @@ export default function App() {
 
   const handleSimulateChat = useCallback(
     (data: { uniqueId: string; nickname: string; comment: string; profilePictureUrl: string }) => {
-      socket?.emit('chat-message', data);
+      emitResilientEvent(socket, 'chat-message', data);
     },
     [socket]
   );
